@@ -17,6 +17,9 @@ lock-in — your data stays on your own machine.
 
 - 🗂 **Brace maps** — dynamic braces, magnetic snapping, reverse braces
 - 🕸 **Spider-web maps** — free anchor connections, smart tidy-up
+- ⌨️ **Keyboard-first** — Tab = child, Enter = sibling, F2 = rename, arrows to move; build a whole map without the mouse
+- 📋 **Outline view** — linear, two-way live sync with the map
+- 🏷 **Rich topics** — markers (priority / progress / flags / symbols), tags, notes, hyperlinks
 - 🎨 **Deep UI customization** — multiple built-in skins, import your own CSS skins & color schemes
 - 🖼 **Free canvas** — drag nodes anywhere, one-click auto-arrange
 - 💾 **Open format** — `.bmap` is just JSON: readable, lossless
@@ -36,6 +39,9 @@ then `npm start`.
 
 - 🗂 **大括号思维导图** —— 动态大括号、磁吸吸附、反向括号
 - 🕸 **蜘蛛网思维导图** —— 自由锚点连线、智能整理
+- ⌨️ **键盘流** —— Tab 加子级、Enter 加同级、F2 改名、方向键移动,全程不碰鼠标即可建图
+- 📋 **大纲视图** —— 线性层级编辑,与导图实时双向同步
+- 🏷 **富节点** —— 标记(优先级 / 进度 / 旗帜 / 符号)、标签、备注、超链接
 - 🎨 **极致自定义 UI** —— 内置多套皮肤一键切换,支持导入自定义 CSS 皮肤与配色方案
 - 🖼 **自由画布** —— 节点随意拖放,一键智能整理回规整布局
 - 💾 **开放格式** —— `.bmap` 即 JSON,可读、可无损打开
