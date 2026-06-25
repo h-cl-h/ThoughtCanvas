@@ -1,65 +1,53 @@
-<div align="center">
-  <img src="assets/icon-256.png" width="120" alt="ThoughtCanvas">
-  <h1>ThoughtCanvas · 思维画布</h1>
-  <p><b>A fully customizable, local-first, open-source thinking tool</b></p>
-  <p>完全自定义 · 本地优先 · 免费开源的桌面思维工具</p>
-</div>
+# ThoughtCanvas · C# 原生版（源代码）
 
----
+## 这是什么
+ThoughtCanvas 思维导图的 **C#（WPF / .NET 8）原生 Windows 版**，版本 **V0.0.2**。
+和网页版共用 **`.bmap` 文件格式**（同一个文件两边都能打开，互通）。
 
-## English
+> **这个版本的定位 = 可行性验证（试水版）。**
+> 目的是验证「不用网页技术、改用原生编译型语言把 ThoughtCanvas 重写一遍」这条路走不走得通、长得像不像、好不好用。
+> 它已经把网页版的主要功能照着抄了过来（大括号图、蜘蛛网图+锚点连线、大纲、富节点、外框/概要/标注/联系/聚焦、整理、设置+自定义快捷键、导出 PNG/JPG/PDF、中英文），
+> 但还**不是最终版**：换肤（网页版的招牌）在 WPF 里无法照搬，是转原生的固有取舍，留作后续。
 
-**ThoughtCanvas** is a free, open-source desktop mind-mapping tool. It offers two
-structures — **brace maps** and **spider-web maps** — and focuses on **deep
-customization** (swappable UI skins, custom colors and styles) and a
-**local-first, open file format** (`.bmap`, plain JSON). No forced login, no cloud
-lock-in — your data stays on your own machine.
+## 用什么语言 / 需要什么环境
+- **语言**：C#（界面用 WPF / XAML）。
+- **框架**：.NET 8（`net8.0-windows`）。
+- **编译需要**：**.NET 8 SDK**。本机已用 `dotnet-install.ps1` 装在用户目录（免管理员）：
+  `%LOCALAPPDATA%\Microsoft\dotnet`，`dotnet.exe` 全路径
+  `C:\Users\开心的外星人\AppData\Local\Microsoft\dotnet\dotnet.exe`。
+- **运行成品不需要任何环境**：发布出来的 exe 是「自包含单文件」，自带运行时，**任何 Win10/11 双击即用，不用装 .NET**。
 
-- 🗂 **Brace maps** — dynamic braces, magnetic snapping, reverse braces
-- 🕸 **Spider-web maps** — free anchor connections, smart tidy-up
-- ⌨️ **Keyboard-first** — Tab = child, Enter = sibling, F2 = rename, arrows to move; build a whole map without the mouse
-- 📋 **Outline view** — linear, two-way live sync with the map
-- 🏷 **Rich topics** — markers (priority / progress / flags / symbols), tags, notes, hyperlinks
-- 🎨 **Deep UI customization** — multiple built-in skins, import your own CSS skins & color schemes
-- 🖼 **Free canvas** — drag nodes anywhere, one-click auto-arrange
-- 💾 **Open format** — `.bmap` is just JSON: readable, lossless
-- 🖥 **Portable** — no install, no registry writes; delete to uninstall
+> ℹ️ **为什么源代码里不放一份运行环境**：源代码文件夹只放「源码」就够了。
+> 编译用的 .NET SDK 是装在系统里的（上面那个路径），不属于本项目；
+> 成品 exe 又会把运行时自己打包进去。所以这里**不需要、也不应该**再塞一份 .NET 运行环境进来，
+> 那样只会让文件夹白白变大、还容易和系统里的版本打架。`bin/` 和 `obj/` 是编译时自动生成的临时产物，
+> 已在 `.gitignore` 里排除——一编译就会重新出现，可以随时删，删了不影响源码。
 
-**Run the release:** download the release folder and double-click `ThoughtCanvas.exe`
-(Windows x64, no installation, no dependencies). **Build from source:** `npm install`
-then `npm start`.
+## 怎么用 / 怎么编译
+- **直接用**：双击同级目录 `ThoughtCanvas V0.0.2 C#版 发行版\ThoughtCanvas.exe`（单文件、约 155MB、免安装）。
+- **改完代码重新生成**（在本文件夹里）：
+  ```powershell
+  $env:DOTNET_ROOT="$env:LOCALAPPDATA\Microsoft\dotnet"          # 让它找到运行时
+  $dotnet="$env:LOCALAPPDATA\Microsoft\dotnet\dotnet.exe"
 
-> Early-stage project, actively evolving.
+  & $dotnet build -c Release                                     # ① 编译检查
+  & $dotnet publish -c Release -r win-x64 --self-contained true `
+      -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true   # ② 出单文件 exe
+  ```
+  成品在 `bin\Release\net8.0-windows\win-x64\publish\ThoughtCanvas.exe`，复制进「…发行版」文件夹即可。
+- **不开窗口快速自测**：`ThoughtCanvas.exe --selftest 输出.png` 会离屏渲染一张带富节点+叠加层的图（外加一张蜘蛛网图、一份 PDF），用来检查排版/绘制对不对。
 
-## 中文
+## 代码结构（MainWindow 按功能拆成多个 partial 文件）
+| 文件 | 作用 |
+|------|------|
+| `Topic.cs` | 数据模型：`Topic`（稳定 Id + 富节点/锚点字段）、叠加层、连线、整份 `Document` |
+| `BmapIO.cs` | 读写 `.bmap`（整份 Document，与网页版互通） |
+| `App.xaml(.cs)` | 启动、全局防闪退兜底、单实例锁、`--selftest` 开关 |
+| `MainWindow.xaml(.cs)` | 主界面、大括号排版、键盘流、选择、文件、大纲 |
+| `MainWindow.Overlays.cs` | 外框 / 概要 / 标注 / 联系 / 聚焦 |
+| `MainWindow.Spider.cs` | 蜘蛛网（锚点 + 拖拽连线 + 智能整理） |
+| `MainWindow.Settings.cs` | 设置面板 + 自定义快捷键 |
+| `MainWindow.Export.cs` | 导出 PNG / JPG / PDF + 自测渲染 |
+| `MainWindow.I18n.cs` | 中英文切换 |
 
-**ThoughtCanvas(思维画布)** 是一款免费、开源的桌面思维导图工具。提供 **大括号思维导图**
-与 **蜘蛛网思维导图** 两种结构,主打 **极致自定义**(可换整套界面皮肤、自定义配色与样式)
-与 **本地优先、开放的文件格式**(`.bmap`,就是 JSON)。不强制登录、不上云,数据始终在你自己电脑上。
-
-- 🗂 **大括号思维导图** —— 动态大括号、磁吸吸附、反向括号
-- 🕸 **蜘蛛网思维导图** —— 自由锚点连线、智能整理
-- ⌨️ **键盘流** —— Tab 加子级、Enter 加同级、F2 改名、方向键移动,全程不碰鼠标即可建图
-- 📋 **大纲视图** —— 线性层级编辑,与导图实时双向同步
-- 🏷 **富节点** —— 标记(优先级 / 进度 / 旗帜 / 符号)、标签、备注、超链接
-- 🎨 **极致自定义 UI** —— 内置多套皮肤一键切换,支持导入自定义 CSS 皮肤与配色方案
-- 🖼 **自由画布** —— 节点随意拖放,一键智能整理回规整布局
-- 💾 **开放格式** —— `.bmap` 即 JSON,可读、可无损打开
-- 🖥 **绿色便携** —— 免安装、不写注册表,删除即卸载干净
-
-**运行发行版:** 下载发行版文件夹,双击 `ThoughtCanvas.exe` 即可(Windows 64 位,免安装、无环境依赖)。
-**从源码运行:** `npm install` 后 `npm start`。
-
-> 本项目处于早期阶段,仍在持续完善。
-
-## License / 许可证
-
-Copyright (C) 2026 happymore
-
-自有代码采用 **[GPL-3.0](LICENSE)** 协议(copyleft:任何人可使用、修改、**商用**,但
-**发布衍生版本时必须同样以 GPL 开源源码**)。打包的第三方框架与字体沿用各自许可证
-(多为 MIT、字体为 OFL,均与 GPL 兼容),见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
-
-The author's own code is licensed under GPL-3.0 (copyleft — commercial use is allowed,
-but distributed derivatives must also be released under GPL). Bundled third-party
-components keep their own licenses (mostly MIT, OFL for fonts).
+> 更详细的进度与给后续开发者的提醒，见**项目根目录**的 `交接说明-C#版.md`、`交接说明-网页版.md`。

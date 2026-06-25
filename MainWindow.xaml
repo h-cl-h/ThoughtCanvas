@@ -1,0 +1,171 @@
+<Window x:Class="ThoughtCanvas.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ThoughtCanvas" Height="760" Width="1180"
+        Background="#F5F6F8" FontFamily="Microsoft YaHei">
+    <Window.Resources>
+        <!-- 普通工具栏按钮：圆角、悬浮变蓝（仿网页 .btn） -->
+        <Style x:Key="Btn" TargetType="Button">
+            <Setter Property="Foreground" Value="#2C3140"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E2E5EC"/>
+            <Setter Property="Padding" Value="11,5"/>
+            <Setter Property="Margin" Value="3,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1" CornerRadius="9" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#5B6CF0"/>
+                                <Setter TargetName="bd" Property="Background" Value="#EEF1FF"/>
+                                <Setter Property="Foreground" Value="#5B6CF0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <!-- 主按钮（＋ 文本框） -->
+        <Style x:Key="BtnPrimary" TargetType="Button" BasedOn="{StaticResource Btn}">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="#5B6CF0" CornerRadius="9" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#6B7BF5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <!-- ============ 编辑器视图 ============ -->
+        <DockPanel>
+            <Border DockPanel.Dock="Top" Background="#F2F4F8" BorderBrush="#E2E5EC" BorderThickness="0,0,0,1">
+                <DockPanel Margin="12,7" LastChildFill="True">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button x:Name="btnRead" Content="👁 阅读模式" Style="{StaticResource Btn}"/>
+                        <Button x:Name="btnFit"  Content="归位"        Style="{StaticResource Btn}"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="10" Height="10" Fill="#5B6CF0" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                        <TextBlock x:Name="docTitle" Text="大括号思维导图" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <Button x:Name="btnHome" Content="🏠 开始页" Style="{StaticResource Btn}"/>
+                        <Separator Margin="6,3"/>
+                        <Button x:Name="btnUndo" Content="↶" Style="{StaticResource Btn}" Padding="9,5"/>
+                        <Button x:Name="btnRedo" Content="↷" Style="{StaticResource Btn}" Padding="9,5"/>
+                        <Separator Margin="6,3"/>
+                        <Button x:Name="btnFile" Content="📁 文件 ▾" Style="{StaticResource Btn}"/>
+                        <Separator Margin="6,3"/>
+                        <Button x:Name="btnAdd"  Content="＋ 文本框" Style="{StaticResource BtnPrimary}"/>
+                        <Button x:Name="btnTidy" Content="✨ 整理" Style="{StaticResource Btn}"/>
+                        <Button x:Name="btnLink" Content="🔗 连线" Style="{StaticResource Btn}" Visibility="Collapsed"/>
+                        <Button x:Name="btnOutline" Content="📋 大纲" Style="{StaticResource Btn}"/>
+                        <TextBlock x:Name="fname" Text="未命名思维导图" Foreground="#8A90A0" VerticalAlignment="Center" Margin="10,0"/>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+            <!-- 大纲视图（右侧抽屉，导图↔大纲实时双向同步） -->
+            <Border x:Name="outlinePanel" DockPanel.Dock="Right" Width="360" Visibility="Collapsed"
+                    Background="White" BorderBrush="#E2E5EC" BorderThickness="1,0,0,0">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Background="#F7F8FB" BorderBrush="#E2E5EC" BorderThickness="0,0,0,1" Padding="14,10">
+                        <DockPanel>
+                            <Button x:Name="btnOutlineClose" DockPanel.Dock="Right" Content="✕" Style="{StaticResource Btn}" Padding="8,3"/>
+                            <TextBlock Text="📋 大纲" FontWeight="SemiBold" FontSize="14" Foreground="#2C3140" VerticalAlignment="Center"/>
+                        </DockPanel>
+                    </Border>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel x:Name="outlineList" Margin="8,10"/>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+            <Border x:Name="viewport" ClipToBounds="True" Background="#F5F6F8">
+                <Canvas x:Name="world" Background="Transparent" Width="6000" Height="4000" RenderTransformOrigin="0,0"/>
+            </Border>
+        </DockPanel>
+
+        <!-- 聚焦/下钻提示条 -->
+        <Border x:Name="focusBar" Visibility="Collapsed" VerticalAlignment="Top" HorizontalAlignment="Center"
+                Margin="0,58,0,0" Background="#2C3140" CornerRadius="20" Padding="16,8" Panel.ZIndex="50">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="🎯 已聚焦：" Foreground="#CBD6FF" FontSize="12.5" VerticalAlignment="Center"/>
+                <TextBlock x:Name="focusName" Text="" Foreground="White" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" MaxWidth="240" TextTrimming="CharacterEllipsis"/>
+                <Button x:Name="btnExitFocus" Content="退出聚焦" Background="Transparent" Foreground="#9FB4FF" BorderThickness="0" Cursor="Hand" Margin="14,0,0,0" FontSize="12.5"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ============ 开始页（覆盖在最上层） ============ -->
+        <Grid x:Name="startPage">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#5B8DEF" Offset="0"/>
+                        <GradientStop Color="#7B6CF0" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Grid Margin="32,40">
+                    <StackPanel VerticalAlignment="Top">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="✦" Foreground="White" FontSize="26" VerticalAlignment="Center"/>
+                            <StackPanel Margin="10,0,0,0">
+                                <TextBlock Text="ThoughtCanvas" Foreground="White" FontSize="20" FontWeight="Bold"/>
+                                <TextBlock Text="思维画布" Foreground="#E2E8FF" FontSize="13"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <TextBlock Foreground="#DCE4FF" Margin="0,24,0,0" TextWrapping="Wrap" LineHeight="22"
+                                   Text="大括号 + 蜘蛛网两种思维导图&#x0a;自由梳理你的思路结构"/>
+                        <Button x:Name="scSettings" Content="⚙ 设置" Style="{StaticResource Btn}" HorizontalAlignment="Left" Margin="0,22,0,0"/>
+                    </StackPanel>
+                    <TextBlock Text="V0.0.2" Foreground="#CBD6FF" FontSize="12" VerticalAlignment="Bottom" HorizontalAlignment="Left"/>
+                </Grid>
+            </Border>
+            <Border Grid.Column="1" Background="White">
+                <StackPanel Margin="44,40">
+                    <TextBlock x:Name="startTitle" Text="开始" FontSize="22" FontWeight="SemiBold" Foreground="#2C3140"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                        <Border x:Name="scNew" Width="200" Height="150" Margin="0,0,16,0" CornerRadius="14" Background="#FAFBFE" BorderBrush="#E2E5EC" BorderThickness="1" Cursor="Hand">
+                            <StackPanel Margin="18" VerticalAlignment="Center">
+                                <TextBlock Text="｛｝" FontSize="34" Foreground="#5B6CF0"/>
+                                <TextBlock x:Name="scNewTitle" Text="新建大括号思维导图" FontSize="14" FontWeight="SemiBold" Foreground="#2C3140" Margin="0,12,0,2"/>
+                                <TextBlock x:Name="scNewSub" Text="空白画布" FontSize="12" Foreground="#8A90A0"/>
+                            </StackPanel>
+                        </Border>
+                        <Border x:Name="scSpider" Width="200" Height="150" Margin="0,0,16,0" CornerRadius="14" Background="#FAFBFE" BorderBrush="#E2E5EC" BorderThickness="1" Cursor="Hand">
+                            <StackPanel Margin="18" VerticalAlignment="Center">
+                                <TextBlock Text="✳" FontSize="34" Foreground="#7B6CF0"/>
+                                <TextBlock x:Name="scSpiderTitle" Text="新建蜘蛛网思维导图" FontSize="14" FontWeight="SemiBold" Foreground="#2C3140" Margin="0,12,0,2"/>
+                                <TextBlock x:Name="scSpiderSub" Text="锚点连线·自由发散" FontSize="12" Foreground="#8A90A0"/>
+                            </StackPanel>
+                        </Border>
+                        <Border x:Name="scOpen" Width="200" Height="150" CornerRadius="14" Background="#FAFBFE" BorderBrush="#E2E5EC" BorderThickness="1" Cursor="Hand">
+                            <StackPanel Margin="18" VerticalAlignment="Center">
+                                <TextBlock Text="📂" FontSize="34"/>
+                                <TextBlock x:Name="scOpenTitle" Text="打开…" FontSize="14" FontWeight="SemiBold" Foreground="#2C3140" Margin="0,12,0,2"/>
+                                <TextBlock x:Name="scOpenSub" Text="浏览 .bmap 文件" FontSize="12" Foreground="#8A90A0"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                    <TextBlock x:Name="recentTitle" Text="最近使用" FontSize="22" FontWeight="SemiBold" Foreground="#2C3140" Margin="0,26,0,8"/>
+                    <StackPanel x:Name="recentList"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>
