@@ -17,6 +17,7 @@ lock-in — your data stays on your own machine.
 
 - 🗂 **Brace maps** — dynamic braces, magnetic snapping, reverse braces
 - 🕸 **Spider-web maps** — free anchor connections, smart tidy-up
+- 🧩 **Multiple structures** — brace, logic chart, org chart, tree, timeline, fishbone, matrix, tree-table; switch the whole map or just one branch (mixed layouts)
 - ⌨️ **Keyboard-first** — Tab = child, Enter = sibling, F2 = rename, arrows to move; build a whole map without the mouse
 - 📋 **Outline view** — linear, two-way live sync with the map
 - 🏷 **Rich topics** — markers (priority / progress / flags / symbols), tags, notes, hyperlinks
@@ -39,6 +40,7 @@ then `npm start`.
 
 - 🗂 **大括号思维导图** —— 动态大括号、磁吸吸附、反向括号
 - 🕸 **蜘蛛网思维导图** —— 自由锚点连线、智能整理
+- 🧩 **多种结构** —— 大括号、逻辑图、组织结构图、树状图、时间轴、鱼骨图、矩阵、树形表格;可整图切换,也可单独给某个分支换结构(混合布局)
 - ⌨️ **键盘流** —— Tab 加子级、Enter 加同级、F2 改名、方向键移动,全程不碰鼠标即可建图
 - 📋 **大纲视图** —— 线性层级编辑,与导图实时双向同步
 - 🏷 **富节点** —— 标记(优先级 / 进度 / 旗帜 / 符号)、标签、备注、超链接
