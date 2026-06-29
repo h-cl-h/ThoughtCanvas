@@ -30,8 +30,20 @@
   body{overflow:hidden;background:var(--bg);}
 
   /* ---------- Toolbar ---------- */
+  /* 顶部菜单栏（PS/Adobe 式文字菜单） */
+  #menubar{position:fixed;top:0;left:0;right:0;height:30px;z-index:51;display:flex;align-items:center;gap:1px;
+    padding:0 10px;white-space:nowrap;user-select:none;overflow:hidden;
+    background:rgba(255,255,255,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--card-border);}
+  #menubar .title{font-weight:600;font-size:13px;display:flex;align-items:center;gap:7px;color:var(--ink);
+    margin-right:8px;cursor:pointer;flex-shrink:0;}
+  #menubar .title .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+  #menubar .title:hover{color:var(--accent);}
+  .mb-item{font-size:13px;color:var(--ink);padding:4px 10px;border-radius:6px;cursor:pointer;line-height:1;}
+  .mb-item:hover{background:var(--accent-soft);}
+  .mb-item.open{background:var(--accent-soft);color:var(--accent);}
+  .mb-item.toggle-on .lbl{color:var(--accent);}
   #toolbar{
-    position:fixed;top:0;left:0;right:0;height:56px;z-index:50;
+    position:fixed;top:30px;left:0;right:0;height:48px;z-index:50;
     display:flex;align-items:center;gap:8px;padding:0 16px;flex-wrap:nowrap;overflow:hidden;
     background:rgba(255,255,255,.82);backdrop-filter:blur(10px);
     border-bottom:1px solid var(--card-border);
@@ -68,13 +80,14 @@
     outline:none;overflow:visible;text-overflow:clip;cursor:text;min-width:80px;}
 
   /* ---------- Canvas ---------- */
-  #canvas{position:absolute;inset:56px 0 0 0;overflow:hidden;touch-action:none;}
-  #canvas.panning{cursor:grabbing;}
-  #world{position:absolute;left:0;top:0;width:6000px;height:4000px;transform-origin:0 0;
+  /* 网格画在视口 #canvas 上（而非有限的 #world），随平移/缩放刷新背景 → 无限延伸 */
+  #canvas{position:absolute;inset:78px 0 0 0;overflow:hidden;touch-action:none;
     background-image:
       linear-gradient(var(--grid) 1px,transparent 1px),
       linear-gradient(90deg,var(--grid) 1px,transparent 1px);
-    background-size:26px 26px;background-position:-1px -1px;}
+    background-size:26px 26px;background-position:0 0;}
+  #canvas.panning{cursor:grabbing;}
+  #world{position:absolute;left:0;top:0;width:6000px;height:4000px;transform-origin:0 0;}
   #braces{position:absolute;left:0;top:0;width:6000px;height:4000px;pointer-events:none;overflow:visible;}
   .brace-path{fill:none;stroke:var(--brace);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
     transition:stroke .2s ease;}
@@ -90,6 +103,15 @@
   .struct-axis{fill:none;stroke:var(--brace);stroke-width:2.4;stroke-linecap:round;opacity:.9;}
   .struct-dot{fill:var(--accent);stroke:var(--bg);stroke-width:1.5;}
   .struct-grid{fill:none;stroke:var(--brace);stroke-width:1.4;opacity:.7;}
+  .seg-handle{fill:var(--accent);stroke:var(--bg);stroke-width:1.5;cursor:move;pointer-events:all;opacity:.85;}
+  .seg-handle:hover{opacity:1;}
+  .seg-panel{position:fixed;z-index:60;background:var(--card);border:1px solid var(--card-border);border-radius:12px;
+    box-shadow:var(--shadow-hi);padding:10px 12px;width:230px;}
+  .seg-panel .sp-title{font-size:12.5px;font-weight:600;color:var(--ink);margin-bottom:6px;}
+  .seg-panel .sp-row{display:flex;align-items:center;gap:8px;}
+  .seg-panel .sp-row input[type=range]{flex:1;accent-color:var(--accent);}
+  .seg-panel .sp-row .pm{font-size:15px;color:var(--muted);width:13px;text-align:center;user-select:none;}
+  .seg-panel .sp-actions{margin-top:8px;text-align:right;}
   #structMenu .struct-scope{padding:7px 14px 6px;font-size:12px;color:var(--ink);opacity:.7;border-bottom:1px solid rgba(128,128,128,.18);}
   #structMenu .struct-scope b{opacity:.95;}
   #structMenu .mi .ic{display:inline-block;width:1.4em;text-align:center;}
@@ -215,14 +237,17 @@
   body.floatmode .node .actions{display:none!important;}
 
   /* ---------- Context menu ---------- */
-  #ctx{position:fixed;z-index:100;min-width:170px;background:#fff;border:1px solid var(--card-border);
+  #ctx,#ctx2{position:fixed;z-index:100;min-width:170px;background:#fff;border:1px solid var(--card-border);
     border-radius:11px;box-shadow:var(--shadow-hi);padding:6px;display:none;font-size:13px;}
-  #ctx .item{padding:8px 11px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:9px;}
-  #ctx .item:hover{background:var(--accent-soft);color:var(--accent);}
-  #ctx .item.danger:hover{background:#fdeae7;color:var(--danger);}
-  #ctx .item .ic{width:16px;text-align:center;}
-  #ctx .sep{height:1px;background:var(--card-border);margin:5px 2px;}
-  #ctx .item.disabled{opacity:.35;pointer-events:none;}
+  #ctx2{z-index:101;}
+  #ctx .item,#ctx2 .item{padding:8px 11px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:9px;}
+  #ctx .item:hover,#ctx2 .item:hover{background:var(--accent-soft);color:var(--accent);}
+  #ctx .item.danger:hover,#ctx2 .item.danger:hover{background:#fdeae7;color:var(--danger);}
+  #ctx .item .ic,#ctx2 .item .ic{width:16px;text-align:center;}
+  #ctx .item .more-arrow{margin-left:auto;color:var(--muted);font-size:12px;}
+  #ctx .item:hover .more-arrow{color:var(--accent);}
+  #ctx .sep,#ctx2 .sep{height:1px;background:var(--card-border);margin:5px 2px;}
+  #ctx .item.disabled,#ctx2 .item.disabled{opacity:.35;pointer-events:none;}
   #ctx .pal-label{font-size:11px;color:var(--muted);padding:3px 11px 3px;}
   #ctx .palette{display:flex;gap:6px;padding:2px 11px 7px;flex-wrap:wrap;}
   #ctx .sw{width:20px;height:20px;border-radius:5px;cursor:pointer;border:1.5px solid var(--card-border);transition:transform .1s;}
@@ -281,6 +306,8 @@
   .tidy-slider-row input[type=range]{flex:1;accent-color:var(--accent);}
   .tidy-slider-row .pm{font-size:16px;color:var(--muted);width:14px;text-align:center;user-select:none;}
   .tidy-hint{font-size:11px;color:var(--muted);padding:0 12px 9px;}
+  .tidy-seglabel{font-size:12px;color:var(--ink);opacity:.85;padding:8px 12px 1px;}
+  .tidy-seglabel b{color:var(--accent);font-weight:600;margin-left:4px;}
   #emptyIcon svg{width:118px;height:118px;}
 
   /* ---------- 富节点：标记 / 标签 / 备注 / 链接 ---------- */
@@ -326,7 +353,7 @@
   #noteBox .nb-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;}
 
   /* ---------- 大纲视图侧栏 ---------- */
-  #outline{position:fixed;left:0;top:56px;bottom:0;width:300px;z-index:45;background:var(--card);
+  #outline{position:fixed;left:0;top:78px;bottom:0;width:300px;z-index:45;background:var(--card);
     border-right:1px solid var(--card-border);box-shadow:2px 0 12px rgba(40,50,80,.06);
     display:none;flex-direction:column;}
   #outline.open{display:flex;}
@@ -351,7 +378,7 @@
   body.outline-open #empty{left:300px;}
 
   /* empty state */
-  #empty{position:absolute;inset:56px 0 0 0;display:flex;flex-direction:column;align-items:center;
+  #empty{position:absolute;inset:78px 0 0 0;display:flex;flex-direction:column;align-items:center;
     justify-content:center;gap:14px;color:var(--muted);pointer-events:none;z-index:5;}
   #empty .big{font-size:46px;}
   #empty .l1{font-size:16px;color:#6b7180;}
@@ -376,6 +403,36 @@
   .mi:hover .arrow{color:var(--accent);}
   .msep{height:1px;background:var(--card-border);margin:5px 4px;}
   .mi .chk{width:14px;text-align:center;color:var(--accent);font-weight:700;}
+  .mi.dis{opacity:.38;pointer-events:none;}
+  .mi.danger{color:var(--danger);}
+  .mi.danger:hover{background:rgba(224,83,61,.12);color:var(--danger);}
+  /* 自定义工具栏浮层（SketchUp 式拖拽） */
+  #tbarMask{position:fixed;inset:0;z-index:330;display:none;align-items:center;justify-content:center;background:rgba(20,22,28,.32);}
+  #tbarMask.show{display:flex;}
+  #tbarCustomize{width:600px;max-width:94vw;max-height:86vh;overflow-y:auto;background:var(--card);border:1px solid var(--card-border);
+    border-radius:16px;box-shadow:var(--shadow-hi);padding:20px 22px;}
+  #tbarCustomize .tbc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+  #tbarCustomize .tbc-title{font-size:16px;font-weight:600;}
+  #tbarCustomize .tbc-done{background:var(--accent);color:#fff;border-color:var(--accent);padding:0 18px;}
+  #tbarCustomize .tbc-hint{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:14px;}
+  #tbarCustomize .tbc-sec{font-size:12px;font-weight:600;color:var(--accent);margin:12px 0 7px;letter-spacing:.3px;}
+  #tbarCustomize .tbc-zone{display:flex;flex-wrap:wrap;gap:8px;min-height:46px;padding:9px;border:1px dashed var(--card-border);border-radius:11px;background:var(--accent-soft);}
+  #tbarCustomize .tbc-zone.tbc-avail{background:transparent;}
+  #tbarCustomize .tbchip{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:6px 11px;border-radius:9px;cursor:grab;
+    background:var(--card);border:1px solid var(--card-border);user-select:none;color:var(--ink);}
+  #tbarCustomize .tbchip:hover{border-color:var(--accent);}
+  #tbarCustomize .tbchip.dragging{opacity:.4;}
+  #tbarCustomize .tbchip-ic{font-size:14px;min-width:14px;text-align:center;}
+  #tbarCustomize .tbc-actions{margin-top:16px;text-align:right;}
+  /* 右键菜单编辑器（分段三选） */
+  #ctxEditorList .ctxrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--card-border);}
+  #ctxEditorList .ctxrow-l{font-size:13.5px;color:var(--ink);display:flex;align-items:center;gap:7px;}
+  #ctxEditorList .ctxprot{font-size:10.5px;color:var(--accent);background:var(--accent-soft);padding:1px 6px;border-radius:999px;}
+  #ctxEditorList .ctxseg-grp{display:inline-flex;border:1px solid var(--card-border);border-radius:8px;overflow:hidden;flex-shrink:0;}
+  #ctxEditorList .ctxseg{font-size:12px;padding:5px 10px;background:var(--card);border:none;border-left:1px solid var(--card-border);cursor:pointer;color:var(--muted);}
+  #ctxEditorList .ctxseg:first-child{border-left:none;}
+  #ctxEditorList .ctxseg.on{background:var(--accent);color:#fff;}
+  #ctxEditorList .ctxseg.dis{opacity:.35;cursor:not-allowed;}
   #exporting-mask{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;
     background:rgba(245,246,248,.7);backdrop-filter:blur(2px);font-size:15px;color:var(--ink);}
   #exporting-mask.show{display:flex;}
@@ -388,9 +445,21 @@
   #settingsMask{position:fixed;inset:0;z-index:320;display:none;align-items:center;justify-content:center;
     background:rgba(44,49,64,.28);backdrop-filter:blur(2px);}
   #settingsMask.show{display:flex;}
-  #settingsBox{width:380px;max-width:92vw;max-height:90vh;overflow-y:auto;background:#fff;border:1px solid var(--card-border);
-    border-radius:16px;box-shadow:var(--shadow-hi);padding:22px 24px;}
-  #settingsBox .set-title{font-size:16px;font-weight:600;margin-bottom:16px;}
+  #settingsBox{width:660px;max-width:94vw;height:560px;max-height:90vh;overflow:hidden;background:var(--card);border:1px solid var(--card-border);
+    border-radius:16px;box-shadow:var(--shadow-hi);padding:0;display:flex;flex-direction:column;}
+  #settingsBox .set-title{font-size:16px;font-weight:600;padding:18px 22px;border-bottom:1px solid var(--card-border);
+    display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+  #settingsBox .set-close{background:none;border:none;font-size:16px;color:var(--muted);cursor:pointer;width:28px;height:28px;border-radius:8px;}
+  #settingsBox .set-close:hover{background:var(--accent-soft);color:var(--accent);}
+  /* Claude 桌面风：左侧分类导航 + 右侧内容面板 */
+  #settingsBox .set-body{flex:1;display:flex;min-height:0;}
+  #settingsBox .set-nav{width:200px;flex-shrink:0;border-right:1px solid var(--card-border);padding:12px 10px;overflow-y:auto;}
+  #settingsBox .set-navitem{font-size:13.5px;color:var(--ink);padding:9px 12px;border-radius:9px;cursor:pointer;margin-bottom:3px;white-space:nowrap;}
+  #settingsBox .set-navitem:hover{background:var(--accent-soft);}
+  #settingsBox .set-navitem.active{background:var(--accent-soft);color:var(--accent);font-weight:600;}
+  #settingsBox .set-panes{flex:1;overflow-y:auto;padding:22px 24px;min-width:0;}
+  #settingsBox .set-pane{display:none;}
+  #settingsBox .set-pane.active{display:block;animation:menuIn .14s ease;}
   #settingsBox .set-label{font-size:13.5px;margin-bottom:10px;color:var(--ink);}
   #settingsBox .set-sec{font-size:12.5px;font-weight:700;color:var(--accent);margin:0 0 11px;letter-spacing:.4px;display:flex;align-items:center;gap:6px;}
   .scheme-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;cursor:pointer;font-size:12.5px;font-weight:700;color:var(--accent);padding:0;letter-spacing:.4px;}
@@ -580,7 +649,7 @@
     <div class="brand"><span class="logo">✦</span><div><div class="bt">ThoughtCanvas</div><div class="bs">思维画布</div></div></div>
     <div class="side-sub">大括号 · 蜘蛛网 · 多种结构图<br>自由梳理你的思路结构</div>
     <button id="scSettings" class="side-btn">⚙ 设置</button>
-    <div class="ver">V0.0.3</div>
+    <div class="ver">V0.0.5</div>
   </div>
   <div class="start-main">
     <h2 class="sh">开始</h2>
@@ -616,25 +685,48 @@
   </div>
 </div>
 
-<div id="toolbar">
+<div id="menubar">
   <div class="title" id="homeBtn" title="返回开始页"><span class="dot"></span><span class="lbl">大括号思维导图</span></div>
-  <button class="btn" id="startBtn" title="返回开始页"><span class="ic">🏠</span><span class="lbl">开始页</span></button>
-  <span class="vsep"></span>
-  <button class="btn icon" id="undoBtn" title="撤销 (Ctrl+Z)">↶</button>
-  <button class="btn icon" id="redoBtn" title="重做 (Ctrl+Y)">↷</button>
-  <span class="vsep"></span>
-  <button class="btn" id="fileMenuBtn" title="文件"><span class="ic">📁</span><span class="lbl">文件</span><span class="caret">▾</span></button>
-  <span class="vsep"></span>
-  <button class="btn primary" id="addRoot"><span class="ic">＋</span><span class="lbl">文本框</span></button>
-  <button class="btn" id="tidyBtn" title="整理布局"><span class="ic">✨</span><span class="lbl">整理</span><span class="caret">▾</span></button>
-  <button class="btn" id="structBtn" title="结构：切换整图或选中分支的布局"><span class="ic">🧩</span><span class="lbl">结构</span><span class="caret">▾</span></button>
-  <button class="btn" id="outlineBtn" title="大纲视图：线性层级编辑，与导图实时双向同步"><span class="ic">📋</span><span class="lbl">大纲</span></button>
-  <span id="fname" class="fname" title="双击重命名">未命名思维导图</span>
-  <div class="spacer"></div>
-  <span id="hint">Tab 子级 · E 同级 · R 改名 · 方向键移动 · 快捷键可在设置里改</span>
-  <button class="btn" id="readBtn" title="阅读模式：全局锁定，只能浏览"><span class="ic">👁</span><span class="lbl">阅读模式</span></button>
-  <button class="btn ghost" id="fit">归位</button>
+  <div class="mb-item" id="fileMenuBtn" data-menu="file"><span class="lbl">文件</span></div>
+  <div class="mb-item" data-menu="edit"><span class="lbl">编辑</span></div>
+  <div class="mb-item" data-menu="insert"><span class="lbl">插入</span></div>
+  <div class="mb-item" id="structBtn" data-menu="struct"><span class="lbl">结构</span></div>
+  <div class="mb-item" id="tidyBtn" data-menu="tidy"><span class="lbl">整理</span></div>
+  <div class="mb-item" data-menu="view"><span class="lbl">视图</span></div>
+  <div class="mb-item" data-menu="window"><span class="lbl">窗口</span></div>
+  <div class="mb-item" data-menu="help"><span class="lbl">帮助</span></div>
 </div>
+<div id="toolbar">
+  <button class="btn icon" id="undoBtn" data-tbk="undo" title="撤销 (Ctrl+Z)">↶</button>
+  <button class="btn icon" id="redoBtn" data-tbk="redo" title="重做 (Ctrl+Y)">↷</button>
+  <button class="btn primary" id="addRoot" data-tbk="addRoot"><span class="ic">＋</span><span class="lbl">文本框</span></button>
+  <button class="btn icon" id="zoomOut" data-tbk="zoomOut" title="缩小">－</button>
+  <button class="btn" id="zoomReset" data-tbk="zoomReset" title="实际大小（100%）">100%</button>
+  <button class="btn icon" id="zoomIn" data-tbk="zoomIn" title="放大">＋</button>
+  <button class="btn ghost" id="fit" data-tbk="fit">归位</button>
+  <button class="btn" id="readBtn" data-tbk="readMode" title="阅读模式：全局锁定，只能浏览"><span class="ic">👁</span><span class="lbl">阅读模式</span></button>
+  <button class="btn" id="tbNew" data-tbk="new" title="新建"><span class="ic">🗋</span><span class="lbl">新建</span></button>
+  <button class="btn" id="tbOpen" data-tbk="open" title="打开 .bmap"><span class="ic">📂</span><span class="lbl">打开</span></button>
+  <button class="btn" id="tbSave" data-tbk="save" title="保存"><span class="ic">💾</span><span class="lbl">保存</span></button>
+  <button class="btn" id="tbOutline" data-tbk="outline" title="大纲视图"><span class="ic">📋</span><span class="lbl">大纲</span></button>
+  <button class="btn" id="tbExport" data-tbk="exportPdf" title="导出 PDF"><span class="ic">📄</span><span class="lbl">导出</span></button>
+  <button class="btn" id="tbStart" data-tbk="start" title="返回开始页"><span class="ic">🏠</span><span class="lbl">开始页</span></button>
+  <button class="btn" id="tbSettings" data-tbk="settings" title="设置"><span class="ic">⚙</span><span class="lbl">设置</span></button>
+  <span class="spacer" id="tbSpacer"></span>
+  <span id="fname" class="fname" title="双击重命名">未命名思维导图</span>
+  <span id="hint">Tab 子级 · E 同级 · R 改名 · 方向键移动 · 右键/菜单栏更多</span>
+</div>
+<div id="barMenu" class="popmenu"></div>
+<div id="ctx2"></div>
+<div id="tbarMask"><div id="tbarCustomize">
+  <div class="tbc-head"><span class="tbc-title">自定义工具栏</span><button class="btn tbc-done" id="tbcDone">完成</button></div>
+  <div class="tbc-hint">把按钮拖到「工具栏」里=添加，拖出到「可添加」=移除，拖动可排序。上面那行菜单栏（文件…）不受影响。</div>
+  <div class="tbc-sec">工具栏</div>
+  <div class="tbc-zone" id="tbcOn"></div>
+  <div class="tbc-sec">可添加</div>
+  <div class="tbc-zone tbc-avail" id="tbcAvail"></div>
+  <div class="tbc-actions"><button class="btn" id="tbcReset">↺ 恢复默认组</button></div>
+</div></div>
 <input type="file" id="fileInput" accept=".bmap,application/json" style="display:none">
 <a id="dl" style="display:none"></a>
 <div id="exporting-mask">正在导出…</div>
@@ -642,70 +734,85 @@
 <div id="focusBar"><span>🔎 聚焦：</span><span class="fb-name"></span><button class="fb-exit">退出聚焦</button></div>
 <div id="settingsMask">
   <div id="settingsBox">
-    <div class="set-title">设置</div>
-    <div class="set-row">
-      <button type="button" class="scheme-toggle acc-toggle" data-acc="accGeneral"><span>⚙ 通用</span><span class="caret">▾</span></button>
-      <div class="scheme-body acc-body" id="accGeneral" style="display:block">
-        <div class="set-label">语言 / Language</div>
-        <select id="langSel" class="set-select">
-          <option value="zh">中文</option>
-          <option value="en">English</option>
-        </select>
-        <div class="set-label" style="margin-top:16px">文本框自动换行字数<span id="wrapVal">30</span> 个</div>
-        <input type="range" id="wrapRange" min="5" max="35" step="1" value="30">
-        <div class="set-hint">每行超过该字数自动换行；也可在编辑时按回车手动换行。</div>
-        <div class="set-label" style="margin-top:16px">主题编号</div>
-        <select id="numberingSel" class="set-select">
-          <option value="">无</option>
-          <option value="num">1.2.3</option>
-          <option value="alpha">A.B.C</option>
-          <option value="lalpha">a.b.c</option>
-          <option value="roman">I.II.III</option>
-        </select>
-        <div class="set-hint">给大括号思维导图的各级子主题自动编号（根/中心主题不编号），编号显示在卡片左上角。</div>
+    <div class="set-title">设置<button type="button" class="set-close" id="setClose" title="关闭">✕</button></div>
+    <div class="set-body">
+      <div class="set-nav">
+        <div class="set-navitem active" data-pane="paneGeneral">⚙ 通用</div>
+        <div class="set-navitem" data-pane="paneKeys">⌨ 快捷键</div>
+        <div class="set-navitem" data-pane="paneBrace">🗂 大括号思维导图</div>
+        <div class="set-navitem" data-pane="paneSpider">🕸 蜘蛛网思维导图</div>
+        <div class="set-navitem" data-pane="paneAppearance">🎨 外观</div>
+        <div class="set-navitem" data-pane="paneTbar">🧰 工具栏</div>
+        <div class="set-navitem" data-pane="paneCtx">🖱 右键菜单</div>
       </div>
-    </div>
-    <div class="set-row" id="keysSetRow">
-      <button type="button" class="scheme-toggle acc-toggle" data-acc="accKeys"><span>⌨ 快捷键（可自定义）</span><span class="caret">▸</span></button>
-      <div class="scheme-body acc-body" id="accKeys" style="display:none">
-        <div class="km-hint">默认快捷键集中在键盘左半部分，方便右手用鼠标、左手按键。点右侧按键即可录制新快捷键，录制时按 Esc 取消、按 退格/Del 清空该项；撞键会自动让出。</div>
-        <div id="keymapList"></div>
-        <button class="btn" id="keymapReset">↺ 全部恢复默认</button>
-      </div>
-    </div>
-    <div class="set-row" id="braceSetRow">
-      <button type="button" class="scheme-toggle acc-toggle" data-acc="accBrace"><span>🗂 大括号思维导图</span><span class="caret">▸</span></button>
-      <div class="scheme-body acc-body" id="accBrace" style="display:none">
-        <label class="set-toggle"><input type="checkbox" id="optCreateParent"><span>添加大括号时新建父文本框</span></label>
-        <label class="set-toggle"><input type="checkbox" id="optCreateTarget"><span>添加反向大括号时新建目标文本框</span></label>
-        <label class="set-toggle"><input type="checkbox" id="optSnap"><span>磁吸：拖动文本框到大括号缺口处自动吸附</span></label>
-        <label class="set-toggle"><input type="checkbox" id="optKeepEmptyBrace"><span>大括号内文本框被拖空后仍保留该大括号</span></label>
-        <div class="set-hint">关闭"新建框"后，大括号只画一个开口，把已有文本框拖到开口处即可吸附成父级/目标；<br>按住 Ctrl + 左键可把括号内/反向目标的文本框拖出来。</div>
-      </div>
-    </div>
-    <div class="set-row" id="spiderSetRow">
-      <button type="button" class="scheme-toggle acc-toggle" data-acc="accSpider"><span>🕸 蜘蛛网思维导图</span><span class="caret">▸</span></button>
-      <div class="scheme-body acc-body" id="accSpider" style="display:none">
-        <label class="set-toggle"><input type="checkbox" id="optSpiderArrow"><span>连线显示箭头</span></label>
-        <label class="set-toggle"><input type="checkbox" id="optAutoAnchor"><span>智能整理时自动创建新锚点</span></label>
-        <label class="set-toggle"><input type="checkbox" id="optNoShareAnchor"><span>智能整理后禁止多条连线共用同一锚点</span></label>
-        <div class="set-hint">整理时会为每条连线自动选用朝向对方的锚点；勾选「自动新建」后，已有锚点都不合适时会自动加一个锚点。勾选「禁止共用」后，落在同一文本框同一点的多条连线会被自动错开到各自独立的锚点。以上仅作用于蜘蛛网思维导图，与大括号思维导图的设置相互独立。</div>
-      </div>
-    </div>
-    <div class="set-row" id="schemeRow">
-      <button type="button" class="scheme-toggle acc-toggle" id="schemeToggle" data-acc="schemeBody"><span>🎨 UI 设置</span><span class="caret" id="schemeCaret">▸</span></button>
-      <div class="scheme-body acc-body" id="schemeBody" style="display:none">
-        <div class="set-label" style="margin-bottom:9px">切换 UI（点即换整套界面外观）</div>
-        <div class="ui-quick" id="uiQuick"></div>
-        <div class="ui-cur" id="uiCurName"></div>
-        <button class="btn ui-more" id="uiMoreBtn">🎨 更多 UI 预设</button>
-        <div class="ui-sub">主题色（点色块即换主色调；自定义可点右上角 × 删除）</div>
-        <div class="schemes" id="schemeSwatches"></div>
-        <div class="set-label" style="margin:14px 0 0">预览</div>
-        <div class="scheme-preview" id="schemePreview"></div>
-        <button class="btn" id="schemeImportBtn">⬇ 导入 UI 方案</button>
-        <div class="scheme-drop" id="schemeDrop">支持 .bmapui（整套 UI）或 .bmaptheme（主题色）；也可把文件拖到这里</div>
-        <div class="scheme-msg" id="schemeMsg"></div>
+      <div class="set-panes">
+        <div class="set-pane active" id="paneGeneral">
+          <div class="set-label">语言 / Language</div>
+          <select id="langSel" class="set-select">
+            <option value="zh">中文</option>
+            <option value="en">English</option>
+          </select>
+          <div class="set-label" style="margin-top:16px">文本框自动换行字数<span id="wrapVal">30</span> 个</div>
+          <input type="range" id="wrapRange" min="5" max="35" step="1" value="30">
+          <div class="set-hint">每行超过该字数自动换行；也可在编辑时按回车手动换行。</div>
+          <div class="set-label" style="margin-top:16px">主题编号</div>
+          <select id="numberingSel" class="set-select">
+            <option value="">无</option>
+            <option value="num">1.2.3</option>
+            <option value="alpha">A.B.C</option>
+            <option value="lalpha">a.b.c</option>
+            <option value="roman">I.II.III</option>
+          </select>
+          <div class="set-hint">给大括号思维导图的各级子主题自动编号（根/中心主题不编号），编号显示在卡片左上角。</div>
+          <div class="set-label" style="margin-top:16px">单节点间距调整方式</div>
+          <select id="segModeSel" class="set-select">
+            <option value="altDrag">Alt + 拖动节点</option>
+            <option value="handle">连线上拖手柄</option>
+            <option value="rclick">右键 → 间距滑条</option>
+          </select>
+          <div class="set-hint">在各种结构里单独微调某个节点到父级的连线段长。默认按住 Alt 拖动该节点即可；也可改用连线上的小圆点手柄，或右键菜单里的滑条。整图统一间距用顶部「整理」里的滑条。</div>
+        </div>
+        <div class="set-pane" id="paneKeys">
+          <div class="km-hint">默认快捷键集中在键盘左半部分，方便右手用鼠标、左手按键。点右侧按键即可录制新快捷键，录制时按 Esc 取消、按 退格/Del 清空该项；撞键会自动让出。</div>
+          <div id="keymapList"></div>
+          <button class="btn" id="keymapReset">↺ 全部恢复默认</button>
+        </div>
+        <div class="set-pane" id="paneBrace">
+          <label class="set-toggle"><input type="checkbox" id="optCreateParent"><span>添加大括号时新建父文本框</span></label>
+          <label class="set-toggle"><input type="checkbox" id="optCreateTarget"><span>添加反向大括号时新建目标文本框</span></label>
+          <label class="set-toggle"><input type="checkbox" id="optSnap"><span>磁吸：拖动文本框到大括号缺口处自动吸附</span></label>
+          <label class="set-toggle"><input type="checkbox" id="optKeepEmptyBrace"><span>大括号内文本框被拖空后仍保留该大括号</span></label>
+          <div class="set-hint">关闭"新建框"后，大括号只画一个开口，把已有文本框拖到开口处即可吸附成父级/目标；<br>按住 Ctrl + 左键可把括号内/反向目标的文本框拖出来。</div>
+        </div>
+        <div class="set-pane" id="paneSpider">
+          <label class="set-toggle"><input type="checkbox" id="optSpiderArrow"><span>连线显示箭头</span></label>
+          <label class="set-toggle"><input type="checkbox" id="optAutoAnchor"><span>智能整理时自动创建新锚点</span></label>
+          <label class="set-toggle"><input type="checkbox" id="optNoShareAnchor"><span>智能整理后禁止多条连线共用同一锚点</span></label>
+          <div class="set-hint">整理时会为每条连线自动选用朝向对方的锚点；勾选「自动新建」后，已有锚点都不合适时会自动加一个锚点。勾选「禁止共用」后，落在同一文本框同一点的多条连线会被自动错开到各自独立的锚点。以上仅作用于蜘蛛网思维导图，与大括号思维导图的设置相互独立。</div>
+        </div>
+        <div class="set-pane" id="paneAppearance">
+          <div class="set-label" style="margin-bottom:9px">切换 UI（点即换整套界面外观）</div>
+          <div class="ui-quick" id="uiQuick"></div>
+          <div class="ui-cur" id="uiCurName"></div>
+          <button class="btn ui-more" id="uiMoreBtn">🎨 更多 UI 预设</button>
+          <div class="ui-sub">主题色（点色块即换主色调；自定义可点右上角 × 删除）</div>
+          <div class="schemes" id="schemeSwatches"></div>
+          <div class="set-label" style="margin:14px 0 0">预览</div>
+          <div class="scheme-preview" id="schemePreview"></div>
+          <button class="btn" id="schemeImportBtn">⬇ 导入 UI 方案</button>
+          <div class="scheme-drop" id="schemeDrop">支持 .bmapui（整套 UI）或 .bmaptheme（主题色）；也可把文件拖到这里</div>
+          <div class="scheme-msg" id="schemeMsg"></div>
+        </div>
+        <div class="set-pane" id="paneTbar">
+          <div class="set-hint">下面那条高频工具栏可以自己挑按钮。上面那行菜单栏（文件…）不受影响。</div>
+          <button class="btn" id="tbarEditBtn" style="margin-top:6px">🧰 自定义工具栏…</button>
+          <div class="set-hint" style="margin-top:14px">也可以直接<b>右键工具栏</b>打开同一个面板：把按钮拖上去=添加、拖下来=移除、拖动=排序。</div>
+        </div>
+        <div class="set-pane" id="paneCtx">
+          <div class="set-hint">右键节点时显示哪些项。设成「更多」会收进右键菜单底部的「更多 ▸」里。标「高频」的（标记/备注/标签/链接/背景色/代办/编辑/加子项/加锚点）是要一个一个反复点的，不能隐藏。</div>
+          <div id="ctxEditorList"></div>
+          <button class="btn" id="ctxResetBtn" style="margin-top:14px">↺ 恢复默认</button>
+        </div>
       </div>
     </div>
     <input type="file" id="schemeFileInput" accept=".bmapui,.bmaptheme,application/json,.json" style="display:none">
@@ -821,6 +928,7 @@ let history = [], hidx = -1;          // 撤销/重做历史
 let readonly = false;                 // 阅读模式：全局只读
 let compactMode = 0;                  // 整理：0=关 1=智能整理(纵向) 2=智能整理+(纵向+横向)
 let numbering = localStorage.getItem('bmap.numbering') || '';  // 主题编号：'' 关 | 'num' 1.2.3 | 'alpha' A.B.C | 'lalpha' a.b.c | 'roman' I.II.III
+let segMode = localStorage.getItem('bmap.segMode') || 'altDrag';  // 单节点间距调整方式：altDrag | handle | rclick
 const nid = p => p + (++idc);
 
 const BRANCH_GAP = 50;   // 父框右缘 → 子框左缘
@@ -837,7 +945,14 @@ let selOverlay = null;   // 选中的叠加元素 {type:'bd'|'sm'|'co'|'rl', id}
 const els = {}; // tbId -> element
 
 //================ 视图变换 ================
-function applyTransform(){ world.style.transform = `translate(${panX}px,${panY}px) scale(${scale})`; }
+function applyTransform(){
+  world.style.transform = `translate(${panX}px,${panY}px) scale(${scale})`;
+  // 网格随视图平移/缩放：世界原点(0,0)映射到屏幕(panX,panY)，格子大小随缩放
+  const gs = 26*scale;
+  canvas.style.backgroundSize = gs+'px '+gs+'px';
+  canvas.style.backgroundPosition = panX+'px '+panY+'px';
+  if(typeof updateZoomLbl==='function') updateZoomLbl();
+}
 // 客户端坐标 → 世界坐标
 function toWorld(clientX, clientY){
   const r = canvas.getBoundingClientRect();
@@ -1059,15 +1174,20 @@ function createEl(id){
     if(e.button!==0) return;
     if(readonly) return;          // 阅读模式：不可选中/拖动
     if(e.shiftKey){ e.stopPropagation(); toggleSel(id); return; }   // Shift = 仅切换选择
-    const ctrl=e.ctrlKey||e.metaKey;
+    const ctrl=e.ctrlKey||e.metaKey, alt=e.altKey;
     down={x:e.clientX,y:e.clientY}; moved=false;
     if(!ctrl) selectTb(id);
-    // 普通拖：仅顶层可拖。Ctrl 拖：括号内子项→上下重排/横拉脱离；其它框→自由拖。Ctrl 单击=切换选择
-    if(!ctrl && !canDrag(id)) return;
     const t=TB[id];
+    // 结构里 Alt+拖某节点 = 调它到父级的连线段长（仅 segMode='altDrag'、非大括号布局、非根、非矩阵）
+    const pst = (t.parentBrace&&BR[t.parentBrace]) ? effStruct(BR[t.parentBrace].parentTb) : 'brace';
+    const canSeg = alt && segMode==='altDrag' && !!t.parentBrace && pst!=='brace' && pst!=='matrix';
+    const segHoriz = (pst==='logicR'||pst==='timeline'||pst==='fishbone');
+    const baseSeg = t._seg||0;
+    // 普通拖：仅顶层可拖。Ctrl 拖：括号内子项→上下重排/横拉脱离；其它框→自由拖。Ctrl 单击=切换选择
+    if(!ctrl && !canSeg && !canDrag(id)) return;
     const startCy=t._cy;
     const DETACH_X=64;                         // Ctrl 横向拉这么远才脱离大括号
-    let mode = (ctrl && t.parentBrace) ? 'reorder' : 'free';
+    let mode = canSeg ? 'seg' : (ctrl && t.parentBrace) ? 'reorder' : 'free';
     let slot=null, baseX=0, baseY=0, detachedFrom=null;
     const enterFree=()=>{ const fb=TB[id].parentBrace; if(ctrl) detachBox(id); if(fb) detachedFrom=fb; baseX=t.x; baseY=t.y; mode='free'; };
     try{ card.setPointerCapture(e.pointerId); }catch(_){}
@@ -1076,6 +1196,10 @@ function createEl(id){
       if(!moved){ if(Math.abs(dx)+Math.abs(dy)<=4) return;
         moved=true; node.classList.add('dragging'); document.body.classList.add('dragging');
         if(mode==='free') enterFree(); }
+      if(mode==='seg'){
+        t._seg = Math.max(-300, Math.min(2000, baseSeg + (segHoriz?dx:dy)/scale));
+        layout(); showHint(null); return;
+      }
       if(mode==='reorder'){
         if(Math.abs(dx/scale) > DETACH_X){ enterFree(); }   // 横向拉远 → 脱离
         else {
@@ -1094,6 +1218,7 @@ function createEl(id){
       const s=slot; showHint(null);
       if(!moved){ if(ctrl) toggleSel(id); return; }
       if(docType==='spider' && spiderTidyOn){ spiderTidyOn=false; updateTidyBtn(); }   // 手动移动 → 退出智能整理
+      if(mode==='seg'){ layout(); markDirty(); return; }       // 单节点段长调整完成
       if(mode==='reorder'){ layout(); markDirty(); return; }   // 重排完成（未脱离）
       if(s) snapToSlot(id, s); else markDirty();
     };
@@ -1144,7 +1269,7 @@ function place(id, leftX, cy){
   t._x=leftX; t._cy=cy;
   const b = t.brace ? BR[t.brace] : null;
   if(!b || b.children.length===0) return;
-  const childLeft = leftX + t._w + BRANCH_GAP;
+  const childLeft = leftX + t._w + BRANCH_GAP*gapMul('brace');
   let total=0;
   b.children.forEach((cid,i)=>{ total += TB[cid]._sub; if(i) total+=V_GAP; });
   let y = cy - total/2;
@@ -1168,7 +1293,7 @@ let curVGap = C_GAP;       // 当前纵向间距（由模式决定）
 function assignX(id, leftX){
   const t=TB[id]; t._x=leftX;
   const b=t.brace?BR[t.brace]:null;
-  if(b) b.children.forEach(c=>assignX(c, leftX + t._w + BRANCH_GAP));
+  if(b) b.children.forEach(c=>assignX(c, leftX + t._w + BRANCH_GAP*gapMul('brace')));
 }
 // 1b) 智能整理+：把子树整体向右错开，让不同分支在横向错开、纵向并拢更紧凑。
 //     关键约束：同一目录(同一父节点)下的子节点强制"一行一个"(各占不同的行)，绝不横向挤在同一行；
@@ -1321,6 +1446,12 @@ function tbKids(id){ const t=TB[id], b=t.brace?BR[t.brace]:null; return (b&&b.ch
 const SG = { rv:26, rh:50, orgH:36, orgV:54, ind:30, tv:16,
   tlLead:64, tlGap:46, tlAmp:78, fbLead:60, fbGap:60, fbAmp:74,
   mxGap:16, mxV:46, ttRow:14, ttIndent:26 };
+// 间距可调：structGap[结构]=全局倍率（默认 1）；t._seg=单节点额外段长（px）
+let structGap = {};
+function gapMul(st){ const v=structGap[st]; return (typeof v==='number'&&v>0)?v:1; }
+function segOf(id){ const v=TB[id]&&TB[id]._seg; return (typeof v==='number')?v:0; }
+// 某子级到父级的“连线段长” = 基础间距×倍率 + 该子级 _seg（下限 8px，防塌陷）
+function effGap(childId, base, st){ return Math.max(8, base*gapMul(st)+segOf(childId)); }
 // 一遍：自底向上量子树包围盒 _sw/_sh，并记录卡片在纵向 band 中的顶偏移 _sct
 function sizeSub(id){
   const t=TB[id], e=els[id];
@@ -1328,36 +1459,37 @@ function sizeSub(id){
   const ch=tbKids(id);
   if(!ch){ t._sw=t._w; t._sh=t._h; t._sct=0; return; }
   ch.forEach(sizeSub);
-  const st=effStruct(id);
+  const st=effStruct(id), mul=gapMul(st);
   if(st==='orgD'){
     let w=0; ch.forEach((c,i)=>w+=TB[c]._sw+(i?SG.orgH:0));
-    let h=0; ch.forEach(c=>{ if(TB[c]._sh>h)h=TB[c]._sh; });
-    t._sw=Math.max(t._w,w); t._sh=t._h+SG.orgV+h; t._sct=0;
+    let h=0; ch.forEach(c=>{ const v=effGap(c,SG.orgV,st)+TB[c]._sh; if(v>h)h=v; });
+    t._sw=Math.max(t._w,w); t._sh=t._h+h; t._sct=0;
   } else if(st==='tree'){
-    let h=0; ch.forEach((c,i)=>h+=TB[c]._sh+(i?SG.tv:0));
+    let h=0; ch.forEach(c=>h+=effGap(c,SG.tv,st)+TB[c]._sh);
     let w=0; ch.forEach(c=>{ if(TB[c]._sw>w)w=TB[c]._sw; });
-    t._sw=Math.max(t._w,SG.ind+w); t._sh=t._h+SG.tv+h; t._sct=0;
+    t._sw=Math.max(t._w,SG.ind+w); t._sh=t._h+h; t._sct=0;
   } else if(st==='timeline' || st==='fishbone'){
     const lead = st==='fishbone'?SG.fbLead:SG.tlLead;
     const gap  = st==='fishbone'?SG.fbGap:SG.tlGap;
     const amp  = st==='fishbone'?SG.fbAmp:SG.tlAmp;
-    let w=0; ch.forEach((c,i)=>w+=Math.max(TB[c]._sw,TB[c]._w)+(i?gap:0));
+    let w=t._w+lead; ch.forEach((c,i)=>{ if(i) w+=effGap(c,gap,st); w+=Math.max(TB[c]._sw,TB[c]._w); });
     let up=0,dn=0; ch.forEach((c,i)=>{ if(i%2===0){ if(TB[c]._sh>up)up=TB[c]._sh; } else { if(TB[c]._sh>dn)dn=TB[c]._sh; } });
-    t._sw=t._w+lead+w; t._sh=Math.max(t._h, up+dn+2*amp); t._sct=(t._sh-t._h)/2;
+    t._sw=w; t._sh=Math.max(t._h, up+dn+2*amp); t._sct=(t._sh-t._h)/2;
   } else if(st==='matrix'){
     const n=ch.length, cols=Math.max(1,Math.ceil(Math.sqrt(n))), rows=Math.ceil(n/cols);
     let colW=0,rowH=0; ch.forEach(c=>{ if(TB[c]._sw>colW)colW=TB[c]._sw; if(TB[c]._sh>rowH)rowH=TB[c]._sh; });
-    t._mxCols=cols; t._mxColW=colW; t._mxRowH=rowH;
-    t._sw=Math.max(t._w, cols*colW+(cols+1)*SG.mxGap);
-    t._sh=t._h+SG.mxV+ rows*rowH+(rows+1)*SG.mxGap; t._sct=0;
+    const g=SG.mxGap*mul, vl=SG.mxV*mul;
+    t._mxCols=cols; t._mxColW=colW; t._mxRowH=rowH; t._mxGap=g; t._mxVl=vl;
+    t._sw=Math.max(t._w, cols*colW+(cols+1)*g);
+    t._sh=t._h+vl+ rows*rowH+(rows+1)*g; t._sct=0;
   } else if(st==='treetable'){
-    let h=0; ch.forEach((c,i)=>h+=TB[c]._sh+(i?SG.ttRow:0));
+    let h=0; ch.forEach(c=>h+=effGap(c,SG.ttRow,st)+TB[c]._sh);
     let w=0; ch.forEach(c=>{ if(TB[c]._sw>w)w=TB[c]._sw; });
-    t._sw=Math.max(t._w, SG.ttIndent+w); t._sh=t._h+SG.ttRow+h; t._sct=0;
+    t._sw=Math.max(t._w, SG.ttIndent+w); t._sh=t._h+h; t._sct=0;
   } else { // brace / logicR / 其它未实现 → 向右生长（卡片纵向居中于 band）
     let h=0; ch.forEach((c,i)=>h+=TB[c]._sh+(i?SG.rv:0));
-    let w=0; ch.forEach(c=>{ if(TB[c]._sw>w)w=TB[c]._sw; });
-    t._sw=t._w+SG.rh+w; t._sh=Math.max(t._h,h); t._sct=(t._sh-t._h)/2;
+    let w=0; ch.forEach(c=>{ const v=effGap(c,SG.rh,st)+TB[c]._sw; if(v>w)w=v; });
+    t._sw=t._w+w; t._sh=Math.max(t._h,h); t._sct=(t._sh-t._h)/2;
   }
 }
 // 二遍：自顶向下定绝对位置（cardCy = 本节点卡片纵向中心）
@@ -1368,40 +1500,41 @@ function placeSub(id,x,cardCy){
   const bandTop = cardCy - t._h/2 - t._sct;
   if(st==='orgD'){
     let totalW=0; ch.forEach((c,i)=>totalW+=TB[c]._sw+(i?SG.orgH:0));
-    const rowTop = bandTop + t._h + SG.orgV;
     let cx=(x+t._w/2)-totalW/2;
     ch.forEach(c=>{ const cc=TB[c]; const ccx=cx+cc._sw/2;
-      placeSub(c, ccx-cc._w/2, rowTop+cc._sct+cc._h/2); cx+=cc._sw+SG.orgH; });
+      const top=bandTop+t._h+effGap(c,SG.orgV,st);
+      placeSub(c, ccx-cc._w/2, top+cc._sct+cc._h/2); cx+=cc._sw+SG.orgH; });
   } else if(st==='tree'){
-    const cl=x+SG.ind; let y=bandTop+t._h+SG.tv;
-    ch.forEach(c=>{ const cc=TB[c]; placeSub(c, cl, y+cc._sct+cc._h/2); y+=cc._sh+SG.tv; });
+    const cl=x+SG.ind; let y=bandTop+t._h;
+    ch.forEach(c=>{ const cc=TB[c]; y+=effGap(c,SG.tv,st); placeSub(c, cl, y+cc._sct+cc._h/2); y+=cc._sh; });
   } else if(st==='timeline' || st==='fishbone'){
     const lead = st==='fishbone'?SG.fbLead:SG.tlLead;
     const gap  = st==='fishbone'?SG.fbGap:SG.tlGap;
     const amp  = st==='fishbone'?SG.fbAmp:SG.tlAmp;
     const axisY=cardCy; let cx=x+t._w+lead;
-    ch.forEach((c,i)=>{ const cc=TB[c]; const ccy=axisY+((i%2===0)?-amp:amp);
-      placeSub(c, cx, ccy); cx+=Math.max(cc._sw,cc._w)+gap; });
+    ch.forEach((c,i)=>{ const cc=TB[c]; if(i) cx+=effGap(c,gap,st); const ccy=axisY+((i%2===0)?-amp:amp);
+      placeSub(c, cx, ccy); cx+=Math.max(cc._sw,cc._w); });
   } else if(st==='matrix'){
     const cols=t._mxCols||1, colW=t._mxColW||t._w, rowH=t._mxRowH||t._h;
-    const gridW=cols*colW+(cols+1)*SG.mxGap;
-    const gx=(x+t._w/2)-gridW/2, gy=cardCy+t._h/2+SG.mxV;
+    const g=t._mxGap||SG.mxGap, vl=t._mxVl||SG.mxV;
+    const gridW=cols*colW+(cols+1)*g;
+    const gx=(x+t._w/2)-gridW/2, gy=cardCy+t._h/2+vl;
     ch.forEach((c,i)=>{ const cc=TB[c]; const col=i%cols, row=Math.floor(i/cols);
-      const cellX=gx+SG.mxGap+col*(colW+SG.mxGap), cellY=gy+SG.mxGap+row*(rowH+SG.mxGap);
+      const cellX=gx+g+col*(colW+g), cellY=gy+g+row*(rowH+g);
       placeSub(c, cellX+(colW-cc._w)/2, cellY+rowH/2); });
   } else if(st==='treetable'){
-    const cl=x+SG.ttIndent; let y=bandTop+t._h+SG.ttRow;
-    ch.forEach(c=>{ const cc=TB[c]; placeSub(c, cl, y+cc._sct+cc._h/2); y+=cc._sh+SG.ttRow; });
+    const cl=x+SG.ttIndent; let y=bandTop+t._h;
+    ch.forEach(c=>{ const cc=TB[c]; y+=effGap(c,SG.ttRow,st); placeSub(c, cl, y+cc._sct+cc._h/2); y+=cc._sh; });
   } else {
-    const cl=x+t._w+SG.rh; let sum=0; ch.forEach((c,i)=>sum+=TB[c]._sh+(i?SG.rv:0));
+    let sum=0; ch.forEach((c,i)=>sum+=TB[c]._sh+(i?SG.rv:0));
     let y=cardCy - sum/2;
-    ch.forEach(c=>{ const cc=TB[c]; placeSub(c, cl, y+cc._sct+cc._h/2); y+=cc._sh+SG.rv; });
+    ch.forEach(c=>{ const cc=TB[c]; placeSub(c, x+t._w+effGap(c,SG.rh,st), y+cc._sct+cc._h/2); y+=cc._sh+SG.rv; });
   }
 }
 // 肘形连线（逻辑图/组织结构图/树状图）
 function elbowRight(b){
   const p=TB[b.parentTb]; const ch=b.children.filter(c=>TB[c]); if(!ch.length) return '';
-  const px=p._x+p._w, py=p._cy, busX=px+SG.rh*0.5;
+  const px=p._x+p._w, py=p._cy, busX=(px+Math.min(...ch.map(c=>TB[c]._x)))/2;
   const cys=ch.map(c=>TB[c]._cy); const top=Math.min(py,...cys), bot=Math.max(py,...cys);
   let d=`M ${F(px)} ${F(py)} H ${F(busX)} M ${F(busX)} ${F(top)} V ${F(bot)}`;
   ch.forEach(c=>{ d+=` M ${F(busX)} ${F(TB[c]._cy)} H ${F(TB[c]._x)}`; });
@@ -1409,7 +1542,7 @@ function elbowRight(b){
 }
 function elbowDown(b){
   const p=TB[b.parentTb]; const ch=b.children.filter(c=>TB[c]); if(!ch.length) return '';
-  const pcx=p._x+p._w/2, pby=p._cy+p._h/2, busY=pby+SG.orgV*0.5;
+  const pcx=p._x+p._w/2, pby=p._cy+p._h/2, busY=(pby+Math.min(...ch.map(c=>TB[c]._cy-TB[c]._h/2)))/2;
   const cxs=ch.map(c=>TB[c]._x+TB[c]._w/2); const left=Math.min(pcx,...cxs), right=Math.max(pcx,...cxs);
   let d=`M ${F(pcx)} ${F(pby)} V ${F(busY)} M ${F(left)} ${F(busY)} H ${F(right)}`;
   ch.forEach(c=>{ const ccx=TB[c]._x+TB[c]._w/2; d+=` M ${F(ccx)} ${F(busY)} V ${F(TB[c]._cy-TB[c]._h/2)}`; });
@@ -1467,13 +1600,14 @@ function structConn(bid, st){
   const b=BR[bid]; const ch=b.children.filter(c=>TB[c]); if(!ch.length) return '';
   const sp=selPrimary(); const sc=(sp&&TB[sp]&&TB[sp].brace===bid)?'sel':'';
   const lc=b.locked?'locked':'';
+  const hs=(segMode==='handle'&&st!=='matrix')?segHandles(b):'';
   if(st==='timeline' || st==='fishbone'){
     const r=axisConn(b, st);
     let s=`<path class="struct-axis ${sc}" d="${r.spine}"/>`;
     if(r.bones.trim()) s+=`<path class="elbow-path ${lc} ${sc}" d="${r.bones}"/>`;
     r.dots.forEach(pt=>{ s+=`<circle class="struct-dot" cx="${F(pt[0])}" cy="${F(pt[1])}" r="4"/>`; });
     s+=`<path class="brace-hit" data-brace="${bid}" d="${r.spine}"/>`;
-    return s;
+    return s+hs;
   }
   if(st==='matrix'){
     const r=gridConn(b);
@@ -1481,13 +1615,51 @@ function structConn(bid, st){
   }
   if(st==='treetable'){
     const r=tableConn(b);
-    return `<path class="struct-grid ${sc}" d="${r.rules}"/><path class="elbow-path ${lc}" d="${r.spine}"/><path class="brace-hit" data-brace="${bid}" d="${r.spine}"/>`;
+    return `<path class="struct-grid ${sc}" d="${r.rules}"/><path class="elbow-path ${lc}" d="${r.spine}"/><path class="brace-hit" data-brace="${bid}" d="${r.spine}"/>`+hs;
   }
   // 肘形家族（逻辑图/组织结构图/树状图）
   const d=(st==='orgD')?elbowDown(b):(st==='tree')?elbowTree(b):elbowRight(b);
   if(!d) return '';
-  return `<path class="elbow-path ${lc} ${sc}" d="${d}"/><path class="brace-hit" data-brace="${bid}" d="${d}"/>`;
+  return `<path class="elbow-path ${lc} ${sc}" d="${d}"/><path class="brace-hit" data-brace="${bid}" d="${d}"/>`+hs;
 }
+// segMode='handle' 时，每个子级在“父中心↔子中心”中点画一个可拖小圆，拖它改该子 _seg
+function segHandles(b){
+  const p=TB[b.parentTb]; if(!p) return '';
+  let s='';
+  b.children.filter(c=>TB[c]).forEach(cid=>{ const c=TB[cid];
+    const hx=((p._x+p._w/2)+(c._x+c._w/2))/2, hy=(p._cy+c._cy)/2;
+    s+=`<circle class="seg-handle" data-seg="${cid}" cx="${F(hx)}" cy="${F(hy)}" r="5"/>`;
+  });
+  return s;
+}
+function startSegHandleDrag(cid, e){
+  if(readonly||!TB[cid]) return;
+  const t=TB[cid];
+  const pst=(t.parentBrace&&BR[t.parentBrace])?effStruct(BR[t.parentBrace].parentTb):'brace';
+  const horiz=(pst==='logicR'||pst==='timeline'||pst==='fishbone');
+  const base=t._seg||0, sx=e.clientX, sy=e.clientY;
+  const mv=ev=>{ const d=(horiz?ev.clientX-sx:ev.clientY-sy)/scale; t._seg=Math.max(-300,Math.min(2000,base+d)); layout(); };
+  const up=()=>{ window.removeEventListener('pointermove',mv); window.removeEventListener('pointerup',up); markDirty(); };
+  window.addEventListener('pointermove',mv); window.addEventListener('pointerup',up);
+}
+// 右键“调整此节点间距”弹出的小滑条
+function closeSegPanel(){ const d=document.getElementById('segPanel'); if(d) d.remove(); }
+function openSegPanel(id, cx, cy){
+  if(!TB[id]) return; closeSegPanel();
+  const d=document.createElement('div'); d.className='seg-panel'; d.id='segPanel';
+  d.innerHTML=`<div class="sp-title">${t('调整此节点间距')}</div>`
+    +`<div class="sp-row"><span class="pm">−</span><input type="range" id="segPanelRange" min="-100" max="320" step="2" value="${Math.round(TB[id]._seg||0)}"><span class="pm">＋</span></div>`
+    +`<div class="sp-actions"><button class="btn" id="segPanelReset">${t('重置')}</button></div>`;
+  document.body.appendChild(d);
+  d.style.left=Math.min(cx, innerWidth-d.offsetWidth-10)+'px';
+  d.style.top=Math.min(cy, innerHeight-d.offsetHeight-10)+'px';
+  d.addEventListener('pointerdown',ev=>ev.stopPropagation());
+  const r=d.querySelector('#segPanelRange');
+  r.addEventListener('input',ev=>{ TB[id]._seg=+ev.target.value; layout(); });
+  r.addEventListener('change',()=>markDirty());
+  d.querySelector('#segPanelReset').addEventListener('click',ev=>{ ev.stopPropagation(); delete TB[id]._seg; layout(); markDirty(); closeSegPanel(); });
+}
+svg.addEventListener('pointerdown', e=>{ const h=e.target.closest&&e.target.closest('.seg-handle'); if(h){ e.stopPropagation(); startSegHandleDrag(h.getAttribute('data-seg'), e); } });
 // SVG 数字安全格式化（与中文系统无关，统一保留 2 位）
 function F(n){ return (Math.round(n*100)/100); }
 
@@ -1792,6 +1964,28 @@ function flash(id){ const c=els[id]&&els[id]._card; if(!c)return; c.animate([{bo
 function flashLocked(id){ const c=els[id]&&els[id]._card; if(!c)return; c.animate([{transform:'translateX(0)'},{transform:'translateX(-5px)'},{transform:'translateX(4px)'},{transform:'translateX(-2px)'},{transform:'translateX(0)'}],{duration:260}); }
 
 //================ 右键菜单 ================
+// 每项分 常用(primary)/更多(more)/隐藏(hidden);保护项(逐节点高频、一次设一大堆)不可隐藏
+const CTX_DEFAULTS={ edit:'primary',addChild:'primary',anchor:'primary',marker:'primary',note:'primary',tag:'primary',link:'primary',bg:'primary',todo:'primary',focus:'primary',del:'primary',
+  addBrace:'more',callout:'more',struct:'more',segAdjust:'more',segReset:'more',lockTb:'more',lockBrace:'more',lockKids:'more' };
+const CTX_PROTECTED=new Set(['edit','addChild','anchor','marker','note','tag','link','bg','todo']);
+const CTX_LABELS={ edit:'编辑文字',addChild:'添加子文本框',anchor:'添加锚点',addBrace:'添加大括号',marker:'标记',note:'备注',tag:'标签',link:'链接',callout:'添加标注',struct:'切换此分支结构',segAdjust:'调整节点间距',segReset:'重置节点间距',focus:'聚焦此分支',bg:'背景颜色',todo:'设为代办',lockTb:'锁定文本框',lockBrace:'锁定大括号',lockKids:'锁定子项',del:'删除' };
+const CTX_EDITOR_KEYS=['edit','addChild','addBrace','anchor','marker','note','tag','link','callout','struct','segAdjust','segReset','focus','bg','todo','lockTb','lockBrace','lockKids','del'];
+function loadCtxCfg(){ try{ const o=JSON.parse(localStorage.getItem('bmap.ctx')); return (o&&typeof o==='object')?o:{}; }catch(e){ return {}; } }
+let ctxCfg=loadCtxCfg();
+function saveCtxCfg(){ try{ localStorage.setItem('bmap.ctx', JSON.stringify(ctxCfg)); }catch(e){} }
+function ctxTier(key){ let tr=ctxCfg[key]||CTX_DEFAULTS[key]||'primary'; if(tr==='hidden'&&CTX_PROTECTED.has(key)) tr='primary'; return tr; }
+function renderCtxEditor(){
+  const box=document.getElementById('ctxEditorList'); if(!box) return;
+  box.innerHTML=CTX_EDITOR_KEYS.map(k=>{
+    const tier=ctxTier(k), prot=CTX_PROTECTED.has(k);
+    const seg=['primary','more','hidden'].map(tr=>{
+      const lbl=tr==='primary'?'常用':tr==='more'?'更多':'隐藏'; const dis=(tr==='hidden'&&prot);
+      return `<button class="ctxseg${tier===tr?' on':''}${dis?' dis':''}" data-k="${k}" data-tier="${tr}"${dis?' disabled':''}>${t(lbl)}</button>`;
+    }).join('');
+    return `<div class="ctxrow"><span class="ctxrow-l">${t(CTX_LABELS[k]||k)}${prot?` <span class="ctxprot">${t('高频')}</span>`:''}</span><span class="ctxseg-grp">${seg}</span></div>`;
+  }).join('');
+  box.querySelectorAll('.ctxseg:not(.dis)').forEach(b=>{ b.onclick=()=>{ ctxCfg[b.dataset.k]=b.dataset.tier; saveCtxCfg(); renderCtxEditor(); }; });
+}
 function openMenu(id, cx, cy){
   if(readonly) return;
   const t=TB[id];
@@ -1821,62 +2015,81 @@ function openMenu(id, cx, cy){
   } else if(docType==='spider'){
     const editLocked = isEditLocked(id);
     items=[
-      {ic:'✎', label:'编辑文字', dis:editLocked, fn:()=>startEdit(id)},
-      {ic:'⚓', label:'添加锚点', fn:()=>startAddAnchor(id)},
-      {sep:true},
-      {ic:'🏷', label:'标记…', fn:()=>openMarkerPanel(id, cx, cy)},
-      {ic:'📝', label:(t.note?'编辑备注…':'添加备注…'), fn:()=>openNote(id)},
-      {ic:'🔖', label:'标签…', fn:()=>addTags(id)},
-      {ic:'🔗', label:(t.link?'编辑链接…':'添加链接…'), fn:()=>setLink(id)},
-      {sep:true},
-      {ic:'🎨', label:'背景颜色…', fn:()=>openColorPanel([id], cx, cy)},
-      {ic: t.todo?'⭕':'✅', label: t.todo?'取消代办':'设为代办', fn:()=>setTodo([id], !t.todo)},
-      {sep:true},
-      {ic: t.locked?'🔓':'🔒', label:t.locked?'解锁文本框':'锁定文本框', fn:()=>toggleLockTb(id)},
-      {ic:'⛓', label:'锁定/解锁子项', fn:()=>toggleLockKids(id)},
-      {sep:true},
-      {ic:'🗑', label:'删除', danger:true, fn:()=>doDelete(id)},
+      {key:'edit',ic:'✎', label:'编辑文字', dis:editLocked, fn:()=>startEdit(id)},
+      {key:'anchor',ic:'⚓', label:'添加锚点', fn:()=>startAddAnchor(id)},
+      {key:'marker',ic:'🏷', label:'标记…', fn:()=>openMarkerPanel(id, cx, cy)},
+      {key:'note',ic:'📝', label:(t.note?'编辑备注…':'添加备注…'), fn:()=>openNote(id)},
+      {key:'tag',ic:'🔖', label:'标签…', fn:()=>addTags(id)},
+      {key:'link',ic:'🔗', label:(t.link?'编辑链接…':'添加链接…'), fn:()=>setLink(id)},
+      {key:'bg',ic:'🎨', label:'背景颜色…', fn:()=>openColorPanel([id], cx, cy)},
+      {key:'todo',ic: t.todo?'⭕':'✅', label: t.todo?'取消代办':'设为代办', fn:()=>setTodo([id], !t.todo)},
+      {key:'lockTb',ic: t.locked?'🔓':'🔒', label:t.locked?'解锁文本框':'锁定文本框', fn:()=>toggleLockTb(id)},
+      {key:'lockKids',ic:'⛓', label:'锁定/解锁子项', fn:()=>toggleLockKids(id)},
+      {key:'del',ic:'🗑', label:'删除', danger:true, fn:()=>doDelete(id)},
     ];
   } else {
     const hasBrace=!!t.brace;
     const braceLocked = hasBrace && BR[t.brace].locked;
     const editLocked = isEditLocked(id);
     items=[
-      {ic:'✎', label:'编辑文字', dis:editLocked, fn:()=>startEdit(id)},
-      {ic:'＋', label:'添加子文本框', dis:editLocked, fn:()=>addChild(id)},
-      {ic:'｛', label:hasBrace?'已有大括号':'添加大括号', dis:hasBrace||editLocked, fn:()=>{ensureBrace(id);addChild(id);}},
-      {sep:true},
-      {ic:'🏷', label:'标记…', fn:()=>openMarkerPanel(id, cx, cy)},
-      {ic:'📝', label:(t.note?'编辑备注…':'添加备注…'), fn:()=>openNote(id)},
-      {ic:'🔖', label:'标签…', fn:()=>addTags(id)},
-      {ic:'🔗', label:(t.link?'编辑链接…':'添加链接…'), fn:()=>setLink(id)},
-      {ic:'💬', label:'添加标注', fn:()=>addCallout(id)},
-      {sep:true},
-      {ic:'🧩', label:'切换此分支结构', fn:()=>{ selectTb(id); openStructMenu(); }},
-      {ic: focusId===id?'🔙':'🔎', label: focusId===id?'退出聚焦':'聚焦此分支', dis:!hasBrace&&focusId!==id, fn:()=>{ focusId===id?exitFocus():setFocus(id); }},
-      {ic:'🎨', label:'背景颜色…', fn:()=>openColorPanel([id], cx, cy)},
-      {ic: t.todo?'⭕':'✅', label: t.todo?'取消代办':'设为代办', fn:()=>setTodo([id], !t.todo)},
-      {sep:true},
-      {ic: t.locked?'🔓':'🔒', label:t.locked?'解锁文本框':'锁定文本框', fn:()=>toggleLockTb(id)},
-      {ic: braceLocked?'🔓':'⛓', label: hasBrace?(braceLocked?'解锁大括号':'锁定大括号'):'锁定大括号(将创建)', fn:()=>toggleLockBrace(id)},
-      {sep:true},
-      {ic:'🗑', label:'删除（含子项）', danger:true, fn:()=>doDelete(id)},
+      {key:'edit',ic:'✎', label:'编辑文字', dis:editLocked, fn:()=>startEdit(id)},
+      {key:'addChild',ic:'＋', label:'添加子文本框', dis:editLocked, fn:()=>addChild(id)},
+      {key:'addBrace',ic:'｛', label:hasBrace?'已有大括号':'添加大括号', dis:hasBrace||editLocked, fn:()=>{ensureBrace(id);addChild(id);}},
+      {key:'marker',ic:'🏷', label:'标记…', fn:()=>openMarkerPanel(id, cx, cy)},
+      {key:'note',ic:'📝', label:(t.note?'编辑备注…':'添加备注…'), fn:()=>openNote(id)},
+      {key:'tag',ic:'🔖', label:'标签…', fn:()=>addTags(id)},
+      {key:'link',ic:'🔗', label:(t.link?'编辑链接…':'添加链接…'), fn:()=>setLink(id)},
+      {key:'callout',ic:'💬', label:'添加标注', fn:()=>addCallout(id)},
+      {key:'struct',ic:'🧩', label:'切换此分支结构', fn:()=>{ selectTb(id); openStructMenu(); }},
+      ...((segMode==='rclick' && t.parentBrace && BR[t.parentBrace] && effStruct(BR[t.parentBrace].parentTb)!=='brace' && effStruct(BR[t.parentBrace].parentTb)!=='matrix') ? [{key:'segAdjust',ic:'📏', label:'调整此节点间距', fn:()=>openSegPanel(id, cx, cy)}] : []),
+      ...((typeof t._seg==='number' && t._seg!==0) ? [{key:'segReset',ic:'↺', label:'重置此节点间距', fn:()=>{ delete TB[id]._seg; layout(); markDirty(); }}] : []),
+      {key:'focus',ic: focusId===id?'🔙':'🔎', label: focusId===id?'退出聚焦':'聚焦此分支', dis:!hasBrace&&focusId!==id, fn:()=>{ focusId===id?exitFocus():setFocus(id); }},
+      {key:'bg',ic:'🎨', label:'背景颜色…', fn:()=>openColorPanel([id], cx, cy)},
+      {key:'todo',ic: t.todo?'⭕':'✅', label: t.todo?'取消代办':'设为代办', fn:()=>setTodo([id], !t.todo)},
+      {key:'lockTb',ic: t.locked?'🔓':'🔒', label:t.locked?'解锁文本框':'锁定文本框', fn:()=>toggleLockTb(id)},
+      {key:'lockBrace',ic: braceLocked?'🔓':'⛓', label: hasBrace?(braceLocked?'解锁大括号':'锁定大括号'):'锁定大括号(将创建)', fn:()=>toggleLockBrace(id)},
+      {key:'del',ic:'🗑', label:'删除（含子项）', danger:true, fn:()=>doDelete(id)},
     ];
   }
+  // 单选菜单按配置分流：常用留外层、更多收进二级、隐藏不画（保护项强制至少留外层）
+  let moreItems=[];
+  if(!multi){
+    const prim=[];
+    items.forEach(it=>{ if(it.sep) return; const k=it.key; if(!k){ prim.push(it); return; } const tr=ctxTier(k); if(tr==='hidden') return; (tr==='more'?moreItems:prim).push(it); });
+    const di=prim.findIndex(it=>it.danger); if(di>0) prim.splice(di,0,{sep:true});
+    items=prim;
+  }
   ctx.innerHTML = items.map((it,i)=> it.sep?'<div class="sep"></div>'
-    :`<div class="item ${it.danger?'danger':''} ${it.dis?'disabled':''}" data-i="${i}"><span class="ic">${it.ic}</span>${it.label}</div>`).join('');
+    :`<div class="item ${it.danger?'danger':''} ${it.dis?'disabled':''}" data-i="${i}"><span class="ic">${it.ic}</span>${it.label}</div>`).join('')
+    + (moreItems.length?`<div class="sep"></div><div class="item" id="ctxMoreItem"><span class="ic">⋯</span>更多<span class="more-arrow">▸</span></div>`:'');
   translateNode(ctx);
   ctx.style.display='block';
   const w=ctx.offsetWidth,h=ctx.offsetHeight;
   ctx.style.left=Math.min(cx,innerWidth-w-8)+'px';
   ctx.style.top=Math.min(cy,innerHeight-h-8)+'px';
-  ctx.querySelectorAll('.item').forEach(el=>{
+  ctx.querySelectorAll('.item[data-i]').forEach(el=>{
     if(el.classList.contains('disabled')) return;
     el.onclick=()=>{ closeMenu(); items[+el.dataset.i].fn(); };
   });
+  const moreEl=document.getElementById('ctxMoreItem');
+  if(moreEl) moreEl.onclick=(ev)=>{ ev.stopPropagation(); openCtx2(moreItems); };
+}
+function openCtx2(list){
+  const c2=document.getElementById('ctx2');
+  c2.innerHTML=list.map((it,i)=> `<div class="item ${it.danger?'danger':''} ${it.dis?'disabled':''}" data-i="${i}"><span class="ic">${it.ic}</span>${it.label}</div>`).join('');
+  translateNode(c2);
+  c2.style.display='block';
+  const moreEl=document.getElementById('ctxMoreItem');
+  const r=moreEl?moreEl.getBoundingClientRect():{right:innerWidth/2,left:innerWidth/2,top:innerHeight/2};
+  const w=c2.offsetWidth,h=c2.offsetHeight;
+  let left=r.right+2; if(left+w>innerWidth-8) left=r.left-w-2;
+  c2.style.left=Math.max(8,left)+'px';
+  c2.style.top=Math.min(r.top, innerHeight-h-8)+'px';
+  c2.querySelectorAll('.item[data-i]').forEach(el=>{ if(el.classList.contains('disabled')) return;
+    el.onclick=()=>{ closeMenu(); list[+el.dataset.i].fn(); }; });
 }
 const BG_COLORS=['', '#fff7d6','#e3f5e1','#e3f0ff','#fde3ef','#efe3fb','#ffe7d3','#eceff3'];
-function closeMenu(){ ctx.style.display='none'; }
+function closeMenu(){ ctx.style.display='none'; const c2=document.getElementById('ctx2'); if(c2) c2.style.display='none'; }
 
 //================ 代办（todo）================
 // 设为/取消代办：仅编辑模式可用（阅读模式连右键菜单都进不来）
@@ -2310,6 +2523,7 @@ function applyCP(color, commit){
 })();
 colorPanel.querySelector('.cp-clear').onclick=()=>applyCP('',true);
 document.addEventListener('pointerdown',e=>{ if(colorPanel.classList.contains('open') && !colorPanel.contains(e.target)) closeColorPanel(); });
+document.addEventListener('pointerdown',e=>{ const sp=document.getElementById('segPanel'); if(sp && !sp.contains(e.target)) closeSegPanel(); });
 
 //================ 文件：新建 / 打开 / 保存 / 另存为 ================
 const isDesktop = !!(window.api && window.api.isDesktop);
@@ -2326,7 +2540,7 @@ function refreshFileLabel(){
 function serialize(){
   const tb={};
   for(const id in TB){const t=TB[id];
-    tb[id]={id:t.id,text:t.text,locked:t.locked,parentBrace:t.parentBrace,brace:t.brace,x:t.x,y:t.y,bg:t.bg,anchors:t.anchors,autoAnchors:t.autoAnchors,todo:t.todo,done:t.done,markers:t.markers,tags:t.tags,note:t.note,link:t.link,struct:t.struct,_ghost:t._ghost,_offX:t._offX,_offY:t._offY};}
+    tb[id]={id:t.id,text:t.text,locked:t.locked,parentBrace:t.parentBrace,brace:t.brace,x:t.x,y:t.y,bg:t.bg,anchors:t.anchors,autoAnchors:t.autoAnchors,todo:t.todo,done:t.done,markers:t.markers,tags:t.tags,note:t.note,link:t.link,struct:t.struct,_seg:t._seg,_ghost:t._ghost,_offX:t._offX,_offY:t._offY};}
   const br={};
   for(const id in BR){const b=BR[id];
     br[id]={id:b.id,locked:b.locked,parentTb:b.parentTb,children:b.children.slice()};}
@@ -2338,7 +2552,7 @@ function serialize(){
   for(const id in LK){const l=LK[id]; lk[id]={id:l.id,a:l.a,aAng:l.aAng,b:l.b,bAng:l.bAng,locked:l.locked,mode:l.mode,nodes:l.nodes,text:l.text,tx:l.tx,ty:l.ty,dist:l.dist};}
   return JSON.stringify({app:'brace-mindmap',version:1,docType,name:curName,idc,roots:roots.slice(),
     textboxes:tb,braces:br,rbraces:rb,fgroups:fg,links:lk, ...dumpExtras(),
-    view:{scale,panX,panY,compactMode,numbering,spiderTidyOn,spiderTidyMode,spiderSpacing,timelineSpacing}}, null, 1);
+    view:{scale,panX,panY,compactMode,numbering,spiderTidyOn,spiderTidyMode,spiderSpacing,timelineSpacing,structGap:Object.assign({},structGap)}}, null, 1);
 }
 
 function loadData(text, fallbackName){
@@ -2356,6 +2570,7 @@ function loadData(text, fallbackName){
   numbering = (d.view && typeof d.view.numbering==='string') ? d.view.numbering : '';
   if(d.view){ spiderTidyOn=!!d.view.spiderTidyOn; if(d.view.spiderSpacing) spiderSpacing=d.view.spiderSpacing;
     if(d.view.timelineSpacing) timelineSpacing=d.view.timelineSpacing;
+    structGap = (d.view.structGap && typeof d.view.structGap==='object') ? d.view.structGap : {};
     spiderTidyMode = d.view.spiderTidyMode || (spiderTidyOn?'radial':''); }   // 兼容旧文件
   applyDocType(); updateTidyBtn();
   update();
@@ -2369,19 +2584,20 @@ function loadData(text, fallbackName){
 //================ 撤销 / 重做 ================
 function modelStr(){
   const tb={}; for(const id in TB){const t=TB[id];
-    tb[id]={id:t.id,text:t.text,locked:t.locked,parentBrace:t.parentBrace,brace:t.brace,x:t.x,y:t.y,bg:t.bg,anchors:t.anchors,autoAnchors:t.autoAnchors,todo:t.todo,done:t.done,markers:t.markers,tags:t.tags,note:t.note,link:t.link,struct:t.struct,_ghost:t._ghost,_offX:t._offX,_offY:t._offY};}
+    tb[id]={id:t.id,text:t.text,locked:t.locked,parentBrace:t.parentBrace,brace:t.brace,x:t.x,y:t.y,bg:t.bg,anchors:t.anchors,autoAnchors:t.autoAnchors,todo:t.todo,done:t.done,markers:t.markers,tags:t.tags,note:t.note,link:t.link,struct:t.struct,_seg:t._seg,_ghost:t._ghost,_offX:t._offX,_offY:t._offY};}
   const br={}; for(const id in BR){const b=BR[id];
     br[id]={id:b.id,locked:b.locked,parentTb:b.parentTb,children:b.children.slice()};}
   const rb={}; for(const id in RB){const r=RB[id]; rb[id]={id:r.id,sources:r.sources.slice(),target:r.target};}
   const fg={}; for(const id in FG){const g=FG[id]; fg[id]={id:g.id,members:g.members.slice()};}
   const lk={}; for(const id in LK){const l=LK[id]; lk[id]={id:l.id,a:l.a,aAng:l.aAng,b:l.b,bAng:l.bAng,locked:l.locked,mode:l.mode,nodes:l.nodes,text:l.text,tx:l.tx,ty:l.ty,dist:l.dist};}
-  return JSON.stringify(Object.assign({docType,idc,roots:roots.slice(),textboxes:tb,braces:br,rbraces:rb,fgroups:fg,links:lk}, dumpExtras()));
+  return JSON.stringify(Object.assign({docType,idc,roots:roots.slice(),textboxes:tb,braces:br,rbraces:rb,fgroups:fg,links:lk,structGap:Object.assign({},structGap)}, dumpExtras()));
 }
 function applyModel(str){
   const d=JSON.parse(str);
   editing=null; selLink=null; selOverlay=null;
   nodesL.innerHTML=''; svg.innerHTML=''; for(const k in els) delete els[k];
   TB=d.textboxes||{}; BR=d.braces||{}; RB=d.rbraces||{}; FG=d.fgroups||{}; LK=d.links||{}; roots=(d.roots||[]).filter(id=>TB[id]); idc=d.idc||0;
+  structGap = (d.structGap && typeof d.structGap==='object') ? d.structGap : {};
   loadExtras(d);
   if(d.docType && d.docType!==docType){ docType=d.docType; applyDocType(); }
   for(const id of [...selSet]) if(!TB[id]) selSet.delete(id);
@@ -2438,14 +2654,14 @@ async function doNew(type, initStruct){
   if(!(await guardUnsaved())) return;
   TB={};BR={};RB={};FG={};LK={};BD={};SM={};CO={};RL={};roots=[];selSet.clear();selLink=null;selOverlay=null;focusId=null;editing=null;olEditing=null;olFocusId=null;idc=0;
   nodesL.innerHTML='';svg.innerHTML='';for(const k in els)delete els[k];
-  cancelAddAnchor(); cancelAddLinkNode(); compactMode=0; spiderTidyOn=false; spiderTidyMode='';
+  cancelAddAnchor(); cancelAddLinkNode(); compactMode=0; spiderTidyOn=false; spiderTidyMode=''; structGap={};
   docType = type || 'brace';
   curPath=null; curName=(docType==='spider'?'未命名蜘蛛网':'未命名思维导图'); dirty=false;
   applyDocType();
   // 指定初始结构时，建一个中心主题承载该结构（非“模板”，只是用哪种方式起步）
   let rootId=null;
   if(initStruct && docType!=='spider'){
-    rootId=newTextbox('中心主题'); const rt=TB[rootId]; rt.x=0; rt.y=0;
+    rootId=newTextbox('中心主题'); const rt=TB[rootId]; rt.x=3000; rt.y=1800;  // 放世界中心
     if(initStruct!=='brace') rt.struct=initStruct;
     roots.push(rootId);
   }
@@ -2496,6 +2712,8 @@ function closeMenus(){
   exportSub.querySelectorAll('.has-sub').forEach(s=>s.classList.remove('active'));
   const tm=document.getElementById('tidyMenu'); if(tm) tm.classList.remove('open');
   const sm=document.getElementById('structMenu'); if(sm) sm.classList.remove('open');
+  const bm=document.getElementById('barMenu'); if(bm) bm.classList.remove('open');
+  document.querySelectorAll('#menubar .mb-item.open').forEach(m=>m.classList.remove('open'));
 }
 function openJpgSub(){
   const item=exportSub.querySelector('.has-sub'); item.classList.add('active');
@@ -2527,7 +2745,7 @@ function closeExportSub(){
   const s=fileMenu.querySelector('.has-sub'); if(s) s.classList.remove('active');
 }
 
-fileBtn.onclick=e=>{ e.stopPropagation(); fileMenu.classList.contains('open')?closeMenus():openFileMenu(); };
+// 文件/结构/整理 的开关统一走菜单栏分发器 openMenubar（见下）
 fileMenu.querySelectorAll('.mi').forEach(mi=>{
   mi.addEventListener('mouseenter',()=>{ mi.classList.contains('has-sub')?openExportSub():closeExportSub(); });
   mi.addEventListener('click',e=>{ e.stopPropagation();
@@ -2586,8 +2804,11 @@ function openSettings(){
   document.getElementById('optAutoAnchor').checked=optAutoAnchor;
   document.getElementById('optNoShareAnchor').checked=optNoShareAnchor;
   document.getElementById('numberingSel').value=numbering;
+  document.getElementById('segModeSel').value=segMode;
   document.getElementById('langSel').value=LANG;
   renderSchemes();
+  document.querySelectorAll('#settingsBox .set-navitem').forEach(n=>n.classList.toggle('active', n.dataset.pane==='paneGeneral'));
+  document.querySelectorAll('#settingsBox .set-pane').forEach(p=>p.classList.toggle('active', p.id==='paneGeneral'));
   settingsMask.classList.add('show');
   translateNode(settingsMask);
 }
@@ -2602,6 +2823,11 @@ document.getElementById('numberingSel').addEventListener('change', e=>{
   numbering=e.target.value;
   localStorage.setItem('bmap.numbering', numbering);
   render(); layout(); markDirty();
+});
+document.getElementById('segModeSel').addEventListener('change', e=>{
+  segMode=e.target.value;
+  localStorage.setItem('bmap.segMode', segMode);
+  layout();   // 切到/离开“连线手柄”需重画手柄
 });
 document.getElementById('langSel').addEventListener('change', e=>{
   LANG=e.target.value; localStorage.setItem('bmap.lang', LANG);
@@ -2691,18 +2917,19 @@ function importThemeFile(file){ if(!file){ return; } const rd=new FileReader();
   rd.onload=()=>importThemeText(rd.result); rd.onerror=()=>schemeMsg('无法读取','err'); rd.readAsText(file); }
 (function(){
   // 通用折叠分区：每个 .acc-toggle 控制 data-acc 指向的 body；打开特定分区时附带渲染
-  document.querySelectorAll('#settingsBox .acc-toggle').forEach(btn=>{
-    btn.onclick=()=>{
-      const body=document.getElementById(btn.dataset.acc); if(!body) return;
-      const open = (body.style.display==='none' || !body.style.display);
-      body.style.display = open?'block':'none';
-      const car=btn.querySelector('.caret'); if(car) car.textContent = open?'▾':'▸';
-      if(open){
-        if(btn.dataset.acc==='schemeBody'){ renderUIQuick(); renderSchemes(); renderPreview(); schemeMsg('',''); }
-        if(btn.dataset.acc==='accKeys'){ renderKeymap(); }
-      }
+  document.querySelectorAll('#settingsBox .set-navitem').forEach(nav=>{
+    nav.onclick=()=>{
+      document.querySelectorAll('#settingsBox .set-navitem').forEach(n=>n.classList.toggle('active', n===nav));
+      const pid=nav.dataset.pane;
+      document.querySelectorAll('#settingsBox .set-pane').forEach(p=>p.classList.toggle('active', p.id===pid));
+      if(pid==='paneAppearance'){ renderUIQuick(); renderSchemes(); renderPreview(); schemeMsg('',''); }
+      if(pid==='paneKeys'){ renderKeymap(); }
+      if(pid==='paneCtx'){ renderCtxEditor(); }
     };
   });
+  const setCloseBtn=document.getElementById('setClose'); if(setCloseBtn) setCloseBtn.onclick=()=>closeSettings();
+  const tbe=document.getElementById('tbarEditBtn'); if(tbe) tbe.onclick=()=>{ closeSettings(); openTbarCustomize(); };
+  const cre=document.getElementById('ctxResetBtn'); if(cre) cre.onclick=()=>{ ctxCfg={}; saveCtxCfg(); renderCtxEditor(); };
   const ib=document.getElementById('schemeImportBtn'), fi=document.getElementById('schemeFileInput');
   if(ib&&fi){ ib.onclick=()=>fi.click(); fi.onchange=e=>{ importThemeFile(e.target.files[0]); e.target.value=''; }; }
   const dz=document.getElementById('schemeDrop');
@@ -2950,7 +3177,6 @@ async function openRecent(r){
 }
 
 document.getElementById('homeBtn').onclick=()=>showStart();
-document.getElementById('startBtn').onclick=()=>showStart();
 document.getElementById('undoBtn').onclick=undo;
 document.getElementById('redoBtn').onclick=redo;
 
@@ -2972,7 +3198,6 @@ function setReadonly(on){
   updateReadBtn(); updateUndoBtns();
 }
 document.getElementById('readBtn').onclick=()=>setReadonly(!readonly);
-document.getElementById('outlineBtn').onclick=()=>toggleOutline();
 document.getElementById('outlineClose').onclick=()=>toggleOutline(false);
 document.querySelector('#focusBar .fb-exit').onclick=exitFocus;
 
@@ -3008,10 +3233,24 @@ function openTidyMenu(){
       else { spiderSpacing=v; if(spiderTidyMode==='radial'){ spiderArrange(); layout(); } } });
     sp.addEventListener('change',()=>{ if(spiderTidyMode) markDirty(); });
   } else {
+    const tgt=(selPrimary()&&TB[selPrimary()])?selPrimary():roots[0];
+    const st=tgt?effStruct(tgt):'brace';
+    const stLabel=(STRUCTS.find(s=>s.k===st)||{label:'大括号图'}).label;
+    const mulPct=Math.round(gapMul(st)*100);
     tidyMenu.innerHTML=`<div class="mi" data-mode="1"><span class="chk"></span><span class="mt">智能整理</span><span class="sk">纵向压缩</span></div>`
-      +`<div class="mi" data-mode="2"><span class="chk"></span><span class="mt">智能整理+</span><span class="sk">横向错位·更紧凑</span></div>`;
+      +`<div class="mi" data-mode="2"><span class="chk"></span><span class="mt">智能整理+</span><span class="sk">横向错位·更紧凑</span></div>`
+      +`<div class="msep"></div>`
+      +`<div class="tidy-seglabel">${t('连线间距')} · ${t(stLabel)} <b id="segPctOut">${mulPct}%</b></div>`
+      +`<div class="tidy-slider-row"><span class="pm">−</span><input type="range" id="structSpace" min="40" max="250" step="5" value="${mulPct}"><span class="pm">＋</span></div>`
+      +`<div class="mi" data-segreset="1"><span class="chk">↺</span><span class="mt">${t('重置本结构间距')}</span></div>`;
     updateTidyMenu();
-    tidyMenu.querySelectorAll('.mi').forEach(mi=>{ mi.addEventListener('click',ev=>{ ev.stopPropagation(); closeMenus(); setTidy(+mi.dataset.mode); }); });
+    tidyMenu.querySelectorAll('.mi[data-mode]').forEach(mi=>{ mi.addEventListener('click',ev=>{ ev.stopPropagation(); closeMenus(); setTidy(+mi.dataset.mode); }); });
+    const ss=tidyMenu.querySelector('#structSpace');
+    ss.addEventListener('pointerdown',ev=>ev.stopPropagation());
+    ss.addEventListener('input',ev=>{ structGap[st]=(+ev.target.value)/100; const o=tidyMenu.querySelector('#segPctOut'); if(o)o.textContent=(+ev.target.value)+'%'; layout(); });
+    ss.addEventListener('change',()=>{ markDirty(); pushHistory(); });
+    const rs=tidyMenu.querySelector('[data-segreset]');
+    if(rs) rs.addEventListener('click',ev=>{ ev.stopPropagation(); closeMenus(); delete structGap[st]; layout(); markDirty(); pushHistory(); });
   }
   tidyMenu.classList.add('open');
   const r=tidyBtn.getBoundingClientRect();
@@ -3042,7 +3281,6 @@ function setTimelineTidy(){
   if(editing && els[editing]) els[editing]._inner.blur();
   layout(); centerContent(); markDirty();
 }
-tidyBtn.onclick=e=>{ e.stopPropagation(); tidyMenu.classList.contains('open')?closeMenus():openTidyMenu(); };
 tidyMenu.addEventListener('click',e=>e.stopPropagation());
 
 //================ 结构（下拉：切换整图 / 选中分支的布局） ================
@@ -3076,8 +3314,168 @@ function setStruct(id, k){
   update(); centerContent();
   markDirty(); pushHistory();
 }
-structBtn.onclick=e=>{ e.stopPropagation(); structMenu.classList.contains('open')?closeMenus():openStructMenu(); };
 structMenu.addEventListener('click',e=>e.stopPropagation());
+
+//================ 顶部菜单栏分发 ================
+function showAbout(){ alert('ThoughtCanvas '+(document.querySelector('.ver')?document.querySelector('.ver').textContent:'')+'\n完全自定义 · 本地优先 · 免费开源的思维工具\n© 2026 happymore'); }
+function menuItems(key){
+  const sp=docType==='spider';
+  const sel=selPrimary(); const has=!!(sel&&TB[sel]); const n=selSet.size;
+  if(key==='edit') return [
+    {label:'撤销', sk:'Ctrl+Z', dis:hidx<=0, fn:()=>undo()},
+    {label:'重做', sk:'Ctrl+Y', dis:hidx>=history.length-1, fn:()=>redo()},
+    {sep:true},
+    {label:'删除', sk:'Del', dis:!has, danger:true, fn:()=>{ if(n>1) doDeleteSelected(); else if(sel) doDelete(sel); }},
+  ];
+  if(key==='insert'){
+    if(sp) return [
+      {label:'编辑文字', dis:!has, fn:()=>has&&startEdit(sel)},
+      {label:'添加锚点', dis:!has, fn:()=>has&&startAddAnchor(sel)},
+      {sep:true},
+      {label:'标记…', dis:!has, fn:()=>has&&openMarkerPanel(sel,140,96)},
+      {label:'备注…', dis:!has, fn:()=>has&&openNote(sel)},
+      {label:'标签…', dis:!has, fn:()=>has&&addTags(sel)},
+      {label:'链接…', dis:!has, fn:()=>has&&setLink(sel)},
+    ];
+    return [
+      {label:'子文本框', dis:!has, fn:()=>has&&addChild(sel)},
+      {label:'大括号', dis:!has, fn:()=>{ if(has){ ensureBrace(sel); addChild(sel); } }},
+      {sep:true},
+      {label:'标记…', dis:!has, fn:()=>has&&openMarkerPanel(sel,140,96)},
+      {label:'备注…', dis:!has, fn:()=>has&&openNote(sel)},
+      {label:'标签…', dis:!has, fn:()=>has&&addTags(sel)},
+      {label:'链接…', dis:!has, fn:()=>has&&setLink(sel)},
+      {label:'添加标注', dis:!has, fn:()=>has&&addCallout(sel)},
+      {sep:true},
+      {label:'外框（圈住选中）', dis:n<1, fn:()=>addBoundary([...selSet])},
+      {label:'概要（归纳选中）', dis:n<1, fn:()=>addSummary([...selSet])},
+      {label:'联系（两主题间箭头）', dis:n!==2, fn:()=>{ const a=[...selSet]; addRelation(a[0],a[1]); }},
+    ];
+  }
+  if(key==='view') return [
+    {label:'大纲视图', sk:'Q', check:outlineOpen, fn:()=>toggleOutline()},
+    {label: focusId?'退出聚焦':'聚焦此分支', dis:!focusId&&!has, fn:()=>{ focusId?exitFocus():(has&&setFocus(sel)); }},
+    {sep:true},
+    {label:'放大', fn:()=>zoomBy(1.2)},
+    {label:'缩小', fn:()=>zoomBy(1/1.2)},
+    {label:'实际大小', fn:()=>zoomReset()},
+    {label:'归位', sk:'F', fn:()=>document.getElementById('fit').click()},
+  ];
+  if(key==='window') return [
+    {label:'开始页', fn:()=>showStart()},
+    {label:'阅读模式', check:readonly, fn:()=>setReadonly(!readonly)},
+    {sep:true},
+    {label:'自定义工具栏…', fn:()=>openTbarCustomize()},
+    {label:'更多 UI 预设…', fn:()=>{ const b=document.getElementById('uiMoreBtn'); if(b) b.click(); }},
+    {label:'设置…', fn:()=>openSettings()},
+  ];
+  if(key==='help') return [
+    {label:'关于 ThoughtCanvas', fn:()=>showAbout()},
+  ];
+  return [];
+}
+const barMenu=document.getElementById('barMenu');
+function openBarMenu(key, anchor){
+  const items=menuItems(key);
+  barMenu.innerHTML=items.map((it,i)=> it.sep?'<div class="msep"></div>'
+    :`<div class="mi${it.dis?' dis':''}${it.danger?' danger':''}" data-i="${i}"><span class="chk">${it.check?'✓':''}</span><span class="mt">${t(it.label)}</span>${it.sk?`<span class="sk">${it.sk}</span>`:''}</div>`).join('');
+  barMenu.querySelectorAll('.mi[data-i]').forEach(el=>{ const it=items[+el.dataset.i];
+    if(it.dis) return;
+    el.addEventListener('click',ev=>{ ev.stopPropagation(); closeMenus(); it.fn&&it.fn(); }); });
+  barMenu.classList.add('open');
+  const r=anchor.getBoundingClientRect();
+  barMenu.style.top=(r.bottom+4)+'px';
+  barMenu.style.left=Math.min(r.left, innerWidth-barMenu.offsetWidth-8)+'px';
+}
+function openMenubar(item){
+  const key=item.dataset.menu;
+  closeMenus();
+  if(key==='file') openFileMenu();
+  else if(key==='struct') openStructMenu();
+  else if(key==='tidy') openTidyMenu();
+  else openBarMenu(key, item);
+  item.classList.add('open');
+}
+const menubarEl=document.getElementById('menubar');
+menubarEl.addEventListener('click', e=>{ const item=e.target.closest('.mb-item'); if(!item) return; e.stopPropagation();
+  if(item.classList.contains('open')) closeMenus(); else openMenubar(item); });
+menubarEl.addEventListener('mouseover', e=>{ const item=e.target.closest('.mb-item'); if(!item) return;
+  if(menubarEl.querySelector('.mb-item.open') && !item.classList.contains('open')) openMenubar(item); });
+barMenu.addEventListener('click',e=>e.stopPropagation());
+// 缩放（菜单/工具栏共用）
+function zoomBy(f){ const cx=canvas.clientWidth/2, cy=canvas.clientHeight/2, ns=Math.max(0.2,Math.min(3,scale*f));
+  panX=cx-(cx-panX)*(ns/scale); panY=cy-(cy-panY)*(ns/scale); scale=ns; applyTransform(); updateZoomLbl(); }
+function zoomReset(){ const cx=canvas.clientWidth/2, cy=canvas.clientHeight/2; panX=cx-(cx-panX)*(1/scale); panY=cy-(cy-panY)*(1/scale); scale=1; applyTransform(); updateZoomLbl(); }
+function updateZoomLbl(){ const z=document.getElementById('zoomReset'); if(z) z.textContent=Math.round(scale*100)+'%'; }
+document.getElementById('zoomIn').onclick=()=>zoomBy(1.2);
+document.getElementById('zoomOut').onclick=()=>zoomBy(1/1.2);
+document.getElementById('zoomReset').onclick=()=>zoomReset();
+// 工具栏新增高频按钮动作
+document.getElementById('tbNew').onclick=async()=>{ await doNew('brace'); };
+document.getElementById('tbOpen').onclick=async()=>{ await doOpen(); };
+document.getElementById('tbSave').onclick=()=>runFileAction('save');
+document.getElementById('tbOutline').onclick=()=>toggleOutline();
+document.getElementById('tbExport').onclick=()=>exportAs('pdf', false);
+document.getElementById('tbStart').onclick=()=>showStart();
+document.getElementById('tbSettings').onclick=()=>openSettings();
+
+//================ 可自定义工具栏（SketchUp 式：拖拽增删排序） ================
+const TBAR_CATALOG=[
+  {k:'undo',ic:'↶',label:'撤销'},{k:'redo',ic:'↷',label:'重做'},{k:'addRoot',ic:'＋',label:'文本框'},
+  {k:'zoomOut',ic:'－',label:'缩小'},{k:'zoomReset',ic:'%',label:'实际大小'},{k:'zoomIn',ic:'＋',label:'放大'},
+  {k:'fit',ic:'⊡',label:'归位'},{k:'readMode',ic:'👁',label:'阅读模式'},
+  {k:'new',ic:'🗋',label:'新建'},{k:'open',ic:'📂',label:'打开'},{k:'save',ic:'💾',label:'保存'},
+  {k:'outline',ic:'📋',label:'大纲'},{k:'exportPdf',ic:'📄',label:'导出PDF'},{k:'start',ic:'🏠',label:'开始页'},{k:'settings',ic:'⚙',label:'设置'},
+];
+const TBAR_DEFAULT=['undo','redo','addRoot','zoomOut','zoomReset','zoomIn','fit','readMode'];
+let tbarCfg=(()=>{ try{ const a=JSON.parse(localStorage.getItem('bmap.tbar')); return (Array.isArray(a)&&a.length)?a.filter(k=>TBAR_CATALOG.some(c=>c.k===k)):TBAR_DEFAULT.slice(); }catch(e){ return TBAR_DEFAULT.slice(); } })();
+function saveTbar(){ try{ localStorage.setItem('bmap.tbar', JSON.stringify(tbarCfg)); }catch(e){} }
+function renderTbar(){
+  document.querySelectorAll('#toolbar [data-tbk]').forEach(btn=>{
+    const i=tbarCfg.indexOf(btn.dataset.tbk);
+    if(i<0){ btn.style.display='none'; } else { btn.style.display=''; btn.style.order=i; }
+  });
+  const sp=document.getElementById('tbSpacer'); if(sp) sp.style.order=900;
+  const fn=document.getElementById('fname'); if(fn) fn.style.order=901;
+  const hn=document.getElementById('hint'); if(hn) hn.style.order=902;
+}
+renderTbar();
+const tbarMask=document.getElementById('tbarMask');
+function tbChip(c){ return `<div class="tbchip" draggable="true" data-tbk="${c.k}"><span class="tbchip-ic">${c.ic}</span><span>${t(c.label)}</span></div>`; }
+function renderTbarCustomize(){
+  document.getElementById('tbcOn').innerHTML = tbarCfg.map(k=>{ const c=TBAR_CATALOG.find(x=>x.k===k); return c?tbChip(c):''; }).join('');
+  document.getElementById('tbcAvail').innerHTML = TBAR_CATALOG.filter(c=>!tbarCfg.includes(c.k)).map(tbChip).join('');
+  document.querySelectorAll('#tbarCustomize .tbchip').forEach(ch=>{
+    ch.addEventListener('dragstart',e=>{ tbDragK=ch.dataset.tbk; e.dataTransfer.effectAllowed='move'; try{e.dataTransfer.setData('text/plain',tbDragK);}catch(_){} ch.classList.add('dragging'); });
+    ch.addEventListener('dragend',()=>{ tbDragK=null; document.querySelectorAll('#tbarCustomize .tbchip').forEach(c=>c.classList.remove('dragging')); });
+  });
+}
+let tbDragK=null;
+function tbarZoneDrop(zoneId, intoOn){
+  const zone=document.getElementById(zoneId);
+  zone.addEventListener('dragover',e=>e.preventDefault());
+  zone.addEventListener('drop',e=>{ e.preventDefault(); if(!tbDragK) return;
+    if(intoOn){
+      const before=[...zone.querySelectorAll('.tbchip')].filter(c=>c.dataset.tbk!==tbDragK)
+        .find(c=>{ const r=c.getBoundingClientRect(); return e.clientX < r.left+r.width/2; });
+      const beforeKey=before?before.dataset.tbk:null;
+      const cur=tbarCfg.indexOf(tbDragK); if(cur>=0) tbarCfg.splice(cur,1);
+      let at=beforeKey?tbarCfg.indexOf(beforeKey):tbarCfg.length; if(at<0)at=tbarCfg.length;
+      tbarCfg.splice(at,0,tbDragK);
+    } else {
+      const cur=tbarCfg.indexOf(tbDragK); if(cur>=0) tbarCfg.splice(cur,1);
+    }
+    saveTbar(); renderTbar(); renderTbarCustomize();
+  });
+}
+tbarZoneDrop('tbcOn', true); tbarZoneDrop('tbcAvail', false);
+function openTbarCustomize(){ closeMenus(); closeMenu(); renderTbarCustomize(); tbarMask.classList.add('show'); }
+function closeTbarCustomize(){ tbarMask.classList.remove('show'); }
+document.getElementById('tbcDone').onclick=closeTbarCustomize;
+document.getElementById('tbcReset').onclick=()=>{ tbarCfg=TBAR_DEFAULT.slice(); saveTbar(); renderTbar(); renderTbarCustomize(); };
+tbarMask.addEventListener('pointerdown',e=>{ if(e.target===tbarMask) closeTbarCustomize(); });
+document.getElementById('tbarCustomize').addEventListener('pointerdown',e=>e.stopPropagation());
+document.getElementById('toolbar').addEventListener('contextmenu',e=>{ e.preventDefault(); openTbarCustomize(); });
 document.getElementById('scNew').onclick=async()=>{ await doNew('brace'); hideStart(); };
 document.getElementById('scSpider').onclick=async()=>{ await doNew('spider'); hideStart(); };
 document.getElementById('scOpen').onclick=async()=>{ if(await doOpen()) hideStart(); };
@@ -3136,7 +3534,7 @@ const CARD_ANGS=[-Math.PI/2,0,Math.PI/2,Math.PI];   // 上 右 下 左 四个默
 
 function applyDocType(){
   document.body.classList.toggle('spider', docType==='spider');
-  const tl=document.querySelector('#toolbar .title .lbl'); if(tl) tl.textContent=t((docType==='spider')?'蜘蛛网思维导图':'大括号思维导图');
+  const tl=document.querySelector('#menubar .title .lbl'); if(tl) tl.textContent=t((docType==='spider')?'蜘蛛网思维导图':'大括号思维导图');
   updateEmptyIcon();
   updateTidyBtn();
 }
@@ -3953,8 +4351,20 @@ const I18N = {
   '大括号图':'Brace','逻辑图':'Logic Chart','组织结构图':'Org Chart','树状图':'Tree',
   '时间轴':'Timeline','鱼骨图':'Fishbone','矩阵':'Matrix','树形表格':'Tree Table',
   '切换此分支结构':'Change this branch’s structure',
+  '连线间距':'Spacing','重置本结构间距':'Reset this structure’s spacing','调整此节点间距':'Adjust this node’s spacing','重置此节点间距':'Reset this node’s spacing','重置':'Reset',
+  '单节点间距调整方式':'Single-node spacing adjustment','Alt + 拖动节点':'Alt + drag node','连线上拖手柄':'Drag handle on connector','右键 → 间距滑条':'Right-click → spacing slider',
+  '在各种结构里单独微调某个节点到父级的连线段长。默认按住 Alt 拖动该节点即可；也可改用连线上的小圆点手柄，或右键菜单里的滑条。整图统一间距用顶部「整理」里的滑条。':'Fine-tune a single node’s connector length to its parent, in any structure. By default hold Alt and drag the node; or switch to a dot handle on the connector, or a slider in the right-click menu. For whole-map spacing use the slider in the top “Tidy” menu.',
   '返回开始页':'Back to Start','开始页':'Start','撤销 (Ctrl+Z)':'Undo (Ctrl+Z)','重做 (Ctrl+Y)':'Redo (Ctrl+Y)',
   '文件':'File','文本框':'Topic','整理':'Tidy','整理布局':'Tidy layout','大纲':'Outline',
+  // 菜单栏
+  '编辑':'Edit','插入':'Insert','视图':'View','窗口':'Window','帮助':'Help',
+  '更多':'More','高频':'Frequent','常用':'Common','隐藏':'Hidden','自定义工具栏':'Customize toolbar','自定义工具栏…':'Customize toolbar…',
+  '🧰 工具栏':'🧰 Toolbar','🖱 右键菜单':'🖱 Right-click menu','完成':'Done','恢复默认组':'Restore default set','导出PDF':'Export PDF',
+  '子文本框':'Child topic','大括号':'Brace','编辑文字':'Edit text','添加锚点':'Add anchor',
+  '外框（圈住选中）':'Boundary (enclose selection)','概要（归纳选中）':'Summary (sum up selection)','联系（两主题间箭头）':'Relationship (arrow between two)',
+  '大纲视图':'Outline view','聚焦此分支':'Focus this branch','放大':'Zoom in','缩小':'Zoom out','实际大小':'Actual size','归位':'Recenter',
+  '开始页':'Start page','更多 UI 预设…':'More UI presets…','设置…':'Settings…','关于 ThoughtCanvas':'About ThoughtCanvas',
+  '实际大小（100%）':'Actual size (100%)','缩小':'Zoom out','放大':'Zoom in','右键/菜单栏更多':'Right-click / menu bar for more',
   '大纲视图：线性层级编辑，与导图实时双向同步':'Outline: linear hierarchy editing, live two-way sync',
   '未命名思维导图':'Untitled Map','未命名蜘蛛网':'Untitled Spider-web','双击重命名':'Double-click to rename',
   'Tab 子级 · E 同级 · R 改名 · 方向键移动 · 快捷键可在设置里改':'Tab=child · E=sibling · R=rename · Arrows=move · keys customizable in Settings',
@@ -3976,8 +4386,8 @@ const I18N = {
   '智能整理':'Smart tidy','智能整理+':'Smart tidy+','纵向压缩':'Vertical compact','横向错位·更紧凑':'Horizontal offset · tighter',
   // 设置面板
   '⚙ 通用':'⚙ General','完成':'Done','语言 / Language':'Language','主题编号':'Topic numbering','无':'None',
-  '⌨ 快捷键（可自定义）':'⌨ Shortcuts (customizable)','↺ 全部恢复默认':'↺ Reset all to default',
-  '🗂 大括号思维导图':'🗂 Brace Mind Map','🕸 蜘蛛网思维导图':'🕸 Spider-web Map','🎨 UI 设置':'🎨 UI Settings',
+  '⌨ 快捷键':'⌨ Shortcuts','↺ 全部恢复默认':'↺ Reset all to default',
+  '🗂 大括号思维导图':'🗂 Brace Mind Map','🕸 蜘蛛网思维导图':'🕸 Spider-web Map','🎨 UI 设置':'🎨 UI Settings','🎨 外观':'🎨 Appearance','关闭':'Close',
   '添加大括号时新建父文本框':'Create a parent box when adding a brace',
   '添加反向大括号时新建目标文本框':'Create a target box when adding a reverse brace',
   '磁吸：拖动文本框到大括号缺口处自动吸附':'Magnetic snap: drag a box into a brace gap to attach',
@@ -4023,7 +4433,7 @@ function translateNode(root){
   root.querySelectorAll('[title]').forEach(el=>{ const v=el.getAttribute('title').trim(); if(v&&map[v]!==undefined) el.setAttribute('title',map[v]); });
   root.querySelectorAll('[placeholder]').forEach(el=>{ const v=el.getAttribute('placeholder').trim(); if(v&&map[v]!==undefined) el.setAttribute('placeholder',map[v]); });
 }
-const I18N_CHROME=['#toolbar','#start','#settingsMask','#fileMenu','#exportSub','#jpgSub','#tidyMenu','#structMenu',
+const I18N_CHROME=['#menubar','#toolbar','#start','#settingsMask','#fileMenu','#exportSub','#jpgSub','#tidyMenu','#structMenu',
   '#empty','#readBadge','#focusBar','#markerPanel','#noteMask','#uiGalleryMask','#outlineHead'];
 function applyLang(){
   document.body.classList.toggle('lang-en', LANG==='en');
@@ -4088,7 +4498,7 @@ function runAction(id){
     case 'newDoc': doNew(docType); break;
     case 'undo': undo(); break;
     case 'redo': redo(); break;
-    case 'deselect': deselect(); closeMenu(); closeMenus(); closeSettings(); closeColorPanel(); break;
+    case 'deselect': deselect(); closeMenu(); closeMenus(); closeSettings(); closeColorPanel(); closeSegPanel(); break;
     case 'toggleOutline': toggleOutline(); break;
     case 'toggleRead': setReadonly(!readonly); break;
     case 'fit': document.getElementById('fit').click(); break;
@@ -4177,7 +4587,7 @@ window.addEventListener('keydown', e=>{
     }
   }
   // 5) 始终兜底：Esc 关闭/取消
-  if(e.key==='Escape'){ deselect(); closeMenu(); closeMenus(); closeSettings(); closeColorPanel(); }
+  if(e.key==='Escape'){ deselect(); closeMenu(); closeMenus(); closeSettings(); closeColorPanel(); closeSegPanel(); }
 });
 
 document.getElementById('addRoot').onclick=()=>{

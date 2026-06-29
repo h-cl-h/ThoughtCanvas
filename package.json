@@ -1,6 +1,6 @@
 {
   "name": "brace-mindmap",
-  "version": "0.0.3",
+  "version": "0.0.5",
   "description": "ThoughtCanvas — 完全自定义、本地优先的思维导图工具",
   "author": "happymore",
   "main": "main.js",
