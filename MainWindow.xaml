@@ -1,0 +1,287 @@
+<Window x:Class="BmapEditor.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="BMAP 配色编辑器 V0.0.3" Height="720" Width="1180"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="Microsoft YaHei" FontSize="13" Background="#f5f6f8">
+
+    <Window.Resources>
+        <Style TargetType="Button" x:Key="Tool">
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style TargetType="TextBlock" x:Key="Label">
+            <Setter Property="Margin" Value="0,10,0,3"/>
+            <Setter Property="Foreground" Value="#5b6070"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="GroupBox">
+            <Setter Property="Margin" Value="0,4,0,0"/>
+            <Setter Property="Padding" Value="8"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+    <DockPanel x:Name="EditorRoot" Visibility="Collapsed">
+        <!-- 顶部工具条 -->
+        <Border DockPanel.Dock="Top" Background="White" BorderBrush="#e2e5ec" BorderThickness="0,0,0,1" Padding="12,8">
+            <StackPanel Orientation="Horizontal">
+                <Button x:Name="BtnHome" Style="{StaticResource Tool}" Content="🏠 开始页"/>
+                <Border Width="1" Background="#e2e5ec" Margin="4,2,10,2"/>
+                <Button x:Name="BtnNewTheme" Style="{StaticResource Tool}" Content="🎨 新建 主题色"/>
+                <Button x:Name="BtnNewUi"    Style="{StaticResource Tool}" Content="🖼 新建 UI 方案"/>
+                <Border Width="1" Background="#e2e5ec" Margin="4,2,10,2"/>
+                <Button x:Name="BtnOpen"     Style="{StaticResource Tool}" Content="📂 打开…"/>
+                <Button x:Name="BtnSave"     Style="{StaticResource Tool}" Content="💾 保存"/>
+                <Button x:Name="BtnSaveAs"   Style="{StaticResource Tool}" Content="另存为…"/>
+                <TextBlock x:Name="TxtCurrent" VerticalAlignment="Center" Margin="14,0,0,0"
+                           Foreground="#8a90a0" Text="未命名"/>
+            </StackPanel>
+        </Border>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="390"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- 左：编辑区 -->
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Padding="14,6,14,14">
+                <StackPanel>
+
+                    <!-- ===== 主题色编辑 ===== -->
+                    <StackPanel x:Name="ThemePanel">
+                        <TextBlock Text="主题色（.bmaptheme）" FontWeight="Bold" FontSize="15" Margin="0,4,0,2"/>
+                        <TextBlock Text="选好主色即可，其余颜色默认自动推导；取消勾选「自动」可手动改。颜色可直接填 0a8a6f（# 可省略，也支持 3 位简写），或点「取色」。" TextWrapping="Wrap" Foreground="#8a90a0"/>
+
+                        <TextBlock Style="{StaticResource Label}" Text="模板（可选，作为起手）"/>
+                        <StackPanel Orientation="Horizontal">
+                            <ComboBox x:Name="CmbThemePreset" Width="200" Height="28"/>
+                            <Button x:Name="BtnLoadPreset" Style="{StaticResource Tool}" Content="载入" Margin="8,0,0,0" Height="28"/>
+                        </StackPanel>
+
+                        <TextBlock Style="{StaticResource Label}" Text="配色名"/>
+                        <TextBox x:Name="TxtThemeName"/>
+
+                        <TextBlock Style="{StaticResource Label}" Text="主色 accent（必填）"/>
+                        <StackPanel Orientation="Horizontal">
+                            <Border x:Name="SwAccent" Width="28" Height="28" CornerRadius="5" BorderBrush="#ccc" BorderThickness="1" Margin="0,0,6,0"/>
+                            <TextBox x:Name="TxtAccentHex" Width="120"/>
+                            <Button x:Name="BtnAccentPick" Style="{StaticResource Tool}" Content="取色" Margin="8,0,0,0" Height="28"/>
+                        </StackPanel>
+
+                        <TextBlock Style="{StaticResource Label}" Text="选中底色 accentSoft"/>
+                        <StackPanel Orientation="Horizontal">
+                            <CheckBox x:Name="ChkSoftAuto" Content="自动" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <Border x:Name="SwSoft" Width="28" Height="28" CornerRadius="5" BorderBrush="#ccc" BorderThickness="1" Margin="0,0,6,0"/>
+                            <TextBox x:Name="TxtSoftHex" Width="120"/>
+                            <Button x:Name="BtnSoftPick" Style="{StaticResource Tool}" Content="取色" Margin="8,0,0,0" Height="28"/>
+                        </StackPanel>
+
+                        <TextBlock Style="{StaticResource Label}" Text="侧栏渐变 sideGrad（角度,色1,色2）"/>
+                        <StackPanel Orientation="Horizontal">
+                            <CheckBox x:Name="ChkSideAuto" Content="自动" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBox x:Name="TxtSide" Width="230"/>
+                        </StackPanel>
+
+                        <TextBlock Style="{StaticResource Label}" Text="卡片渐变 thumbBlank"/>
+                        <StackPanel Orientation="Horizontal">
+                            <CheckBox x:Name="ChkTBlankAuto" Content="自动" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBox x:Name="TxtTBlank" Width="230"/>
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource Label}" Text="卡片渐变 thumbSample"/>
+                        <StackPanel Orientation="Horizontal">
+                            <CheckBox x:Name="ChkTSampleAuto" Content="自动" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBox x:Name="TxtTSample" Width="230"/>
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource Label}" Text="卡片渐变 thumbOpen"/>
+                        <StackPanel Orientation="Horizontal">
+                            <CheckBox x:Name="ChkTOpenAuto" Content="自动" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBox x:Name="TxtTOpen" Width="230"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- ===== UI 方案编辑 ===== -->
+                    <StackPanel x:Name="UiPanel" Visibility="Collapsed">
+                        <TextBlock Text="UI 方案（.bmapui）" FontWeight="Bold" FontSize="15" Margin="0,4,0,2"/>
+
+                        <TextBlock Style="{StaticResource Label}" Text="方案名"/>
+                        <TextBox x:Name="TxtUiName"/>
+
+                        <TextBlock Style="{StaticResource Label}" Text="写法"/>
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="RbModeA" Content="A · 基底皮肤 + 主色" IsChecked="True" Margin="0,0,16,0"/>
+                            <RadioButton x:Name="RbModeB" Content="B · 整段 CSS"/>
+                        </StackPanel>
+
+                        <!-- 写法 A -->
+                        <StackPanel x:Name="ModeAPanel">
+                            <TextBlock Style="{StaticResource Label}" Text="基底皮肤 base"/>
+                            <ComboBox x:Name="CmbBase" Width="240" Height="28" HorizontalAlignment="Left"/>
+
+                            <TextBlock Style="{StaticResource Label}" Text="主色 accent"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Border x:Name="SwUiAccent" Width="28" Height="28" CornerRadius="5" BorderBrush="#ccc" BorderThickness="1" Margin="0,0,6,0"/>
+                                <TextBox x:Name="TxtUiAccentHex" Width="120"/>
+                                <Button x:Name="BtnUiAccentPick" Style="{StaticResource Tool}" Content="取色" Margin="8,0,0,0" Height="28"/>
+                            </StackPanel>
+
+                            <TextBlock Style="{StaticResource Label}" Text="选中底色 accentSoft"/>
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox x:Name="ChkUiSoftAuto" Content="自动" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <Border x:Name="SwUiSoft" Width="28" Height="28" CornerRadius="5" BorderBrush="#ccc" BorderThickness="1" Margin="0,0,6,0"/>
+                                <TextBox x:Name="TxtUiSoftHex" Width="120"/>
+                                <Button x:Name="BtnUiSoftPick" Style="{StaticResource Tool}" Content="取色" Margin="8,0,0,0" Height="28"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- 写法 B -->
+                        <StackPanel x:Name="ModeBPanel" Visibility="Collapsed">
+                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                <TextBlock Text="整段 CSS（用 !important 覆盖）" Foreground="#5b6070" VerticalAlignment="Center"/>
+                                <Button x:Name="BtnInsertTpl" Content="插入示例片段" Margin="12,0,0,0" Height="26" Padding="8,0"/>
+                            </StackPanel>
+                            <TextBox x:Name="TxtCss" Height="300" Margin="0,4,0,0"
+                                     AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap"
+                                     VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                                     FontFamily="Consolas,Cascadia Mono,monospace" FontSize="12"
+                                     VerticalContentAlignment="Top"/>
+                            <TextBlock Text="常用选择器：#toolbar · .btn · .btn.primary · .card · .node.sel · 变量 --accent/--accent-soft/--bg/--ink"
+                                       TextWrapping="Wrap" Foreground="#8a90a0" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- 状态 -->
+                    <Border Margin="0,14,0,0" Padding="8,6" CornerRadius="6" Background="#eef1f6">
+                        <TextBlock x:Name="TxtStatus" TextWrapping="Wrap" Text="就绪"/>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Center" VerticalAlignment="Stretch" Background="#e2e5ec"/>
+
+            <!-- 右：实时预览 -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Border Grid.Row="0" Background="White" BorderBrush="#e2e5ec" BorderThickness="0,0,0,1" Padding="12,6">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="实时预览：" Foreground="#8a90a0" VerticalAlignment="Center"/>
+                        <RadioButton x:Name="RbPvStart" Content="开始页" IsChecked="True" Margin="4,0,14,0" VerticalAlignment="Center"/>
+                        <RadioButton x:Name="RbPvMain" Content="主界面" VerticalAlignment="Center"/>
+                        <TextBlock Text="（开始页体现侧栏渐变与三张卡片渐变；主界面体现按钮主色与选中底色）"
+                                   Foreground="#b0b6c2" VerticalAlignment="Center" Margin="16,0,0,0"/>
+                    </StackPanel>
+                </Border>
+                <wv2:WebView2 x:Name="Web" Grid.Row="1"/>
+            </Grid>
+        </Grid>
+    </DockPanel>
+
+    <!-- ================= 开始页（软件主页） ================= -->
+    <Grid x:Name="HomeRoot" Background="#f5f6f8">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="300"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- 左侧品牌栏（渐变） -->
+        <Border Grid.Column="0" Padding="36,40">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#5b8def" Offset="0"/>
+                    <GradientStop Color="#7b6cf0" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top">
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="56" Height="56" CornerRadius="15" Background="#33ffffff">
+                            <TextBlock Text="🎨" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="BMAP 配色编辑器" Foreground="White" FontSize="18" FontWeight="SemiBold"/>
+                            <TextBlock Text="THEME &amp; PALETTE" Foreground="#cfe0ff" FontSize="11"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <TextBlock Margin="0,24,0,0" Foreground="#eef4ff" FontSize="13" TextWrapping="Wrap"
+                               Text="为 ThoughtCanvas 制作 .bmaptheme 配色 / .bmapui 界面方案，实时预览、一键导出。"/>
+                </StackPanel>
+                <TextBlock DockPanel.Dock="Bottom" Text="V0.0.3" Foreground="#cfd8f5" FontSize="12" VerticalAlignment="Bottom"/>
+            </DockPanel>
+        </Border>
+
+        <!-- 右侧主区 -->
+        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="52,42">
+            <StackPanel>
+                <TextBlock Text="开始" FontSize="15" FontWeight="SemiBold" Foreground="#3a4050" Margin="0,0,0,16"/>
+                <StackPanel Orientation="Horizontal">
+                    <!-- 新建 -->
+                    <Button x:Name="HomeNewBtn" Width="200" Cursor="Hand" Margin="0,0,18,0"
+                            HorizontalContentAlignment="Left" BorderBrush="#e2e5ec" Background="White">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="1" CornerRadius="14" Padding="18">
+                                    <ContentPresenter/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <StackPanel>
+                            <Border Height="88" CornerRadius="10" Margin="0,0,0,13">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#5b8def" Offset="0"/>
+                                        <GradientStop Color="#6f9bf2" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <TextBlock Text="＋" FontSize="42" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Text="新建配色" FontSize="14.5" FontWeight="SemiBold" Foreground="#23262e"/>
+                            <TextBlock Text="从空白开始一套主题色" FontSize="12" Foreground="#8a90a0" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Button>
+                    <!-- 打开 -->
+                    <Button x:Name="HomeOpenBtn" Width="200" Cursor="Hand"
+                            HorizontalContentAlignment="Left" BorderBrush="#e2e5ec" Background="White">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="1" CornerRadius="14" Padding="18">
+                                    <ContentPresenter/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <StackPanel>
+                            <Border Height="88" CornerRadius="10" Margin="0,0,0,13">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#39b59a" Offset="0"/>
+                                        <GradientStop Color="#46c4a8" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <TextBlock Text="📂" FontSize="34" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Text="打开 / 导入" FontSize="14.5" FontWeight="SemiBold" Foreground="#23262e"/>
+                            <TextBlock Text="浏览 .bmaptheme / .bmapui" FontSize="12" Foreground="#8a90a0" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <TextBlock Text="最近使用" FontSize="15" FontWeight="SemiBold" Foreground="#3a4050" Margin="0,38,0,14"/>
+                <StackPanel x:Name="RecentList" MaxWidth="620" HorizontalAlignment="Left"/>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+    </Grid>
+</Window>

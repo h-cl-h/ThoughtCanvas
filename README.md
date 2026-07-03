@@ -1,67 +1,105 @@
-<div align="center">
-  <img src="assets/icon-256.png" width="120" alt="ThoughtCanvas">
-  <h1>ThoughtCanvas · 思维画布</h1>
-  <p><b>A fully customizable, local-first, open-source thinking tool</b></p>
-  <p>完全自定义 · 本地优先 · 免费开源的桌面思维工具</p>
-</div>
+# BMAP Color Editor · BMAP 配色编辑器 (V0.0.3)
+
+> English first, 中文在下。
 
 ---
 
 ## English
 
-**ThoughtCanvas** is a free, open-source desktop mind-mapping tool. It offers two
-structures — **brace maps** and **spider-web maps** — and focuses on **deep
-customization** (swappable UI skins, custom colors and styles) and a
-**local-first, open file format** (`.bmap`, plain JSON). No forced login, no cloud
-lock-in — your data stays on your own machine.
+A lightweight desktop tool to **visually create and edit the two custom file
+types used by ThoughtCanvas**:
 
-- 🗂 **Brace maps** — dynamic braces, magnetic snapping, reverse braces
-- 🕸 **Spider-web maps** — free anchor connections, smart tidy-up
-- 🧩 **Multiple structures** — brace, logic chart, org chart, tree, timeline, fishbone, matrix, tree-table; switch the whole map or just one branch (mixed layouts)
-- ⌨️ **Keyboard-first** — Tab = child, Enter = sibling, F2 = rename, arrows to move; build a whole map without the mouse
-- 📋 **Outline view** — linear, two-way live sync with the map
-- 🏷 **Rich topics** — markers (priority / progress / flags / symbols), tags, notes, hyperlinks
-- 🎨 **Deep UI customization** — multiple built-in skins, import your own CSS skins & color schemes
-- 🖼 **Free canvas** — drag nodes anywhere, one-click auto-arrange
-- 💾 **Open format** — `.bmap` is just JSON: readable, lossless
-- 🖥 **Portable** — no install, no registry writes; delete to uninstall
+- `.bmaptheme` — theme colors (color scheme)
+- `.bmapui` — UI scheme (Mode A: base skin + accent / Mode B: raw CSS)
 
-**Run the release:** download the release folder and double-click `ThoughtCanvas.exe`
-(Windows x64, no installation, no dependencies). **Build from source:** `npm install`
-then `npm start`.
+### Tech stack
+C# WPF (.NET 8) + WebView2. The shell, color picking and file I/O use native
+C# (lightweight); the preview pane embeds WebView2 (the Edge engine bundled
+with Windows 11 — the browser itself is **not** packaged). The preview uses the
+same Chromium engine as ThoughtCanvas, so what you see matches 100%.
 
-> Early-stage project, actively evolving.
+### Features
+- 🏠 **Start page**: opens to a home screen with **New / Open** entries and a
+  **Recent files** list.
+- 🎨 Create/edit **theme colors**: pick the accent visually; every other color
+  is auto-derived by default and can be overridden manually. 6 built-in schemes
+  as starting templates. Smart color input (`#` optional, 3-digit shorthand,
+  any case).
+- 🖼 Create/edit **UI schemes**: Mode A (pick one of 12 base skins + change
+  accent), Mode B (full CSS editor with a sample snippet and common selectors).
+- 📂 **Open an existing .bmaptheme/.bmapui to edit** — type is auto-detected and
+  fields are populated.
+- 👁 **Live preview** on the right, switchable between **Start page** and **Main
+  UI**: the start page shows the sidebar/card gradients, the main UI shows the
+  button accent and selected-item background.
+- 💾 Save as `.bmaptheme` / `.bmapui`, then import in ThoughtCanvas via
+  **Settings → Appearance → Import**.
+- Color derivation (accentSoft = ×1.7, dark = ×0.8, light = ×1.18) is bit-for-bit
+  identical to ThoughtCanvas's `hexDark`, so exports never fail to load.
+
+### Run (release build)
+Double-click `BMAP配色编辑器.exe` in the release folder (self-contained .NET
+runtime, no install needed). Requires the Edge WebView2 runtime (bundled with
+Windows 11).
+
+### Build from source
+Requires the .NET 8 SDK:
+```
+dotnet build -c Release
+```
+Publish a self-contained portable build:
+```
+dotnet publish "BMAP配色编辑器.csproj" -c Release -r win-x64 --self-contained true -o "<release-dir>"
+```
+(SDK on this machine lives at `%USERPROFILE%\.dotnet\dotnet.exe`)
+
+### Folders
+- `assets/skins/` — the 12 skin CSS sets copied from ThoughtCanvas V0.0.5, used
+  for Mode A previews.
+
+---
 
 ## 中文
 
-**ThoughtCanvas(思维画布)** 是一款免费、开源的桌面思维导图工具。提供 **大括号思维导图**
-与 **蜘蛛网思维导图** 两种结构,主打 **极致自定义**(可换整套界面皮肤、自定义配色与样式)
-与 **本地优先、开放的文件格式**(`.bmap`,就是 JSON)。不强制登录、不上云,数据始终在你自己电脑上。
+专门用来**可视化编辑和创建 ThoughtCanvas 的两种自定义文件**的桌面小工具：
 
-- 🗂 **大括号思维导图** —— 动态大括号、磁吸吸附、反向括号
-- 🕸 **蜘蛛网思维导图** —— 自由锚点连线、智能整理
-- 🧩 **多种结构** —— 大括号、逻辑图、组织结构图、树状图、时间轴、鱼骨图、矩阵、树形表格;可整图切换,也可单独给某个分支换结构(混合布局)
-- ⌨️ **键盘流** —— Tab 加子级、Enter 加同级、F2 改名、方向键移动,全程不碰鼠标即可建图
-- 📋 **大纲视图** —— 线性层级编辑,与导图实时双向同步
-- 🏷 **富节点** —— 标记(优先级 / 进度 / 旗帜 / 符号)、标签、备注、超链接
-- 🎨 **极致自定义 UI** —— 内置多套皮肤一键切换,支持导入自定义 CSS 皮肤与配色方案
-- 🖼 **自由画布** —— 节点随意拖放,一键智能整理回规整布局
-- 💾 **开放格式** —— `.bmap` 即 JSON,可读、可无损打开
-- 🖥 **绿色便携** —— 免安装、不写注册表,删除即卸载干净
+- `.bmaptheme` —— 主题色（配色方案）
+- `.bmapui` —— UI 方案（写法 A 基底皮肤+主色 / 写法 B 整段 CSS）
 
-**运行发行版:** 下载发行版文件夹,双击 `ThoughtCanvas.exe` 即可(Windows 64 位,免安装、无环境依赖)。
-**从源码运行:** `npm install` 后 `npm start`。
+### 技术栈
+C# WPF (.NET 8) + WebView2。外壳/取色/文件读写用 C# 原生（轻量），
+预览区嵌 WebView2（Win11 系统自带 Edge 内核，不打包浏览器），
+预览用的正是和 ThoughtCanvas 同款 Chromium，所以效果 100% 一致。
 
-> 本项目处于早期阶段,仍在持续完善。
+### 功能
+- 🏠 **开始页**：打开软件先进主页，有「新建 / 打开」两个入口，下面是「最近使用」文件列表。
+- 🎨 新建/编辑 **主题色**：可视化取色选主色，其余颜色默认自动推导，
+  每一项都能取消「自动」手动填；内置 6 套配色可作起手模板。
+  颜色输入智能识别（`#` 可省略、支持 3 位简写、大小写皆可）。
+- 🖼 新建/编辑 **UI 方案**：写法 A（12 套基底皮肤下拉 + 换主色）、
+  写法 B（整段 CSS 编辑，带示例片段和常用选择器提示）。
+- 📂 **打开现有 .bmaptheme/.bmapui 再改**，自动识别类型并回填。
+- 👁 右侧 **实时预览**，可切「开始页 / 主界面」两种视图：
+  开始页体现侧栏渐变与三张卡片渐变，主界面体现按钮主色与选中底色。
+- 💾 保存为 `.bmaptheme` / `.bmapui`，直接丢回 ThoughtCanvas 的
+  「设置 → 外观 → 导入」即可使用。
+- 颜色推导逻辑（accentSoft=×1.7、暗×0.8、亮×1.18）与 ThoughtCanvas
+  的 `hexDark` 逐位一致，导出后不会「无法读取」。
 
-## License / 许可证
+### 运行（成品）
+双击「发行版」里的 `BMAP配色编辑器.exe`（自带 .NET 运行时，免安装）。
+需要系统装有 Edge WebView2 运行时（Win11 默认自带）。
 
-Copyright (C) 2026 happymore
+### 从源码构建
+需要 .NET 8 SDK：
+```
+dotnet build -c Release
+```
+发布自带运行时的绿色版：
+```
+dotnet publish "BMAP配色编辑器.csproj" -c Release -r win-x64 --self-contained true -o "<发行版目录>"
+```
+（本机 SDK 装在用户目录 `%USERPROFILE%\.dotnet\dotnet.exe`）
 
-自有代码采用 **[GPL-3.0](LICENSE)** 协议(copyleft:任何人可使用、修改、**商用**,但
-**发布衍生版本时必须同样以 GPL 开源源码**)。打包的第三方框架与字体沿用各自许可证
-(多为 MIT、字体为 OFL,均与 GPL 兼容),见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
-
-The author's own code is licensed under GPL-3.0 (copyleft — commercial use is allowed,
-but distributed derivatives must also be released under GPL). Bundled third-party
-components keep their own licenses (mostly MIT, OFL for fonts).
+### 目录
+- `assets/skins/` —— 从 ThoughtCanvas V0.0.5 复制的 12 套皮肤 CSS，供写法 A 预览。
