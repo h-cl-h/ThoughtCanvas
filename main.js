@@ -110,6 +110,11 @@ ipcMain.handle('export-save', async (e, { base64, defaultName, ext }) => {
   return { canceled: false, path: filePath };
 });
 
+// UI 皮肤持久化到 userData 下的文件（localStorage 万一被清也能恢复，导入后无需重复导入）
+const skinsFile = () => path.join(app.getPath('userData'), 'ui-skins.json');
+ipcMain.handle('skins-load', () => { try { return fs.readFileSync(skinsFile(), 'utf8'); } catch (err) { return null; } });
+ipcMain.handle('skins-save', (e, json) => { try { fs.writeFileSync(skinsFile(), json, 'utf8'); return { ok: true }; } catch (err) { return { ok: false, error: err.message }; } });
+
 // 渲染层启动时索取“双击打开的初始文件”
 ipcMain.handle('get-initial-file', () => {
   if (!pendingFile) return null;

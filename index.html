@@ -81,12 +81,14 @@
 
   /* ---------- Canvas ---------- */
   /* 网格画在视口 #canvas 上（而非有限的 #world），随平移/缩放刷新背景 → 无限延伸 */
-  #canvas{position:absolute;inset:78px 0 0 0;overflow:hidden;touch-action:none;
+  #canvas{position:absolute;inset:78px 0 32px 0;overflow:hidden;touch-action:none;
     background-image:
       linear-gradient(var(--grid) 1px,transparent 1px),
       linear-gradient(90deg,var(--grid) 1px,transparent 1px);
     background-size:26px 26px;background-position:0 0;}
   #canvas.panning{cursor:grabbing;}
+  #canvas.space-pan{cursor:grab;}
+  #canvas.space-pan.panning{cursor:grabbing;}
   #world{position:absolute;left:0;top:0;width:6000px;height:4000px;transform-origin:0 0;}
   #braces{position:absolute;left:0;top:0;width:6000px;height:4000px;pointer-events:none;overflow:visible;}
   .brace-path{fill:none;stroke:var(--brace);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
@@ -105,6 +107,10 @@
   .struct-grid{fill:none;stroke:var(--brace);stroke-width:1.4;opacity:.7;}
   .seg-handle{fill:var(--accent);stroke:var(--bg);stroke-width:1.5;cursor:move;pointer-events:all;opacity:.85;}
   .seg-handle:hover{opacity:1;}
+  /* 对齐辅助线：拖动时与别的文本框同一横/纵坐标就显示，虚线 + 磁吸 */
+  .align-guide{position:absolute;display:none;pointer-events:none;z-index:9;}
+  #alignV{border-left:1.5px dashed var(--accent);}
+  #alignH{border-top:1.5px dashed var(--accent);}
   .seg-panel{position:fixed;z-index:60;background:var(--card);border:1px solid var(--card-border);border-radius:12px;
     box-shadow:var(--shadow-hi);padding:10px 12px;width:230px;}
   .seg-panel .sp-title{font-size:12.5px;font-weight:600;color:var(--ink);margin-bottom:6px;}
@@ -353,9 +359,48 @@
   #noteBox .nb-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;}
 
   /* ---------- 大纲视图侧栏 ---------- */
-  #outline{position:fixed;left:0;top:78px;bottom:0;width:300px;z-index:45;background:var(--card);
+  #outline{position:fixed;left:0;top:78px;bottom:32px;width:300px;z-index:45;background:var(--card);
     border-right:1px solid var(--card-border);box-shadow:2px 0 12px rgba(40,50,80,.06);
     display:none;flex-direction:column;}
+  /* 底部画布标签栏（多画布） */
+  #sheetTabs{position:fixed;left:0;right:0;bottom:0;height:32px;z-index:46;display:flex;align-items:stretch;
+    background:var(--card);border-top:1px solid var(--card-border);padding:0 4px;overflow-x:auto;overflow-y:hidden;}
+  #sheetTabList{display:flex;align-items:stretch;}
+  .sheet-tab{display:flex;align-items:center;gap:5px;padding:0 10px;font-size:12.5px;color:var(--muted);cursor:pointer;
+    max-width:180px;white-space:nowrap;user-select:none;border-radius:8px 8px 0 0;margin-top:3px;}
+  .sheet-tab:hover{color:var(--ink);background:var(--bg);}
+  .sheet-tab.active{color:var(--accent);font-weight:600;background:var(--accent-soft);}
+  .sheet-tab .st-name{overflow:hidden;text-overflow:ellipsis;max-width:140px;}
+  .sheet-tab .st-name[contenteditable="true"]{background:#fff;box-shadow:0 0 0 2px var(--accent-soft);border-radius:4px;padding:0 3px;outline:none;overflow:visible;}
+  .sheet-tab .st-x{opacity:0;font-size:12px;border-radius:4px;padding:0 2px;line-height:1;}
+  .sheet-tab:hover .st-x{opacity:.55;}
+  .sheet-tab .st-x:hover{opacity:1;background:rgba(0,0,0,.1);}
+  #sheetAdd{border:none;background:transparent;font-size:16px;cursor:pointer;color:var(--muted);width:30px;flex-shrink:0;align-self:center;height:26px;border-radius:6px;}
+  #sheetAdd:hover{color:var(--accent);background:var(--bg);}
+  body.readonly #sheetAdd,body.readonly .sheet-tab .st-x{display:none;}
+
+  /* 甘特图（项目管理） */
+  #ganttMask{position:fixed;inset:0;z-index:150;background:rgba(20,26,44,.34);display:none;align-items:center;justify-content:center;}
+  #ganttMask.open{display:flex;}
+  #ganttBox{width:92vw;max-width:1120px;height:82vh;background:var(--card);border-radius:14px;box-shadow:var(--shadow-hi);display:flex;flex-direction:column;overflow:hidden;}
+  .gt-head{height:44px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid var(--card-border);font-weight:600;font-size:14px;color:var(--ink);}
+  .gt-head button{border:none;background:transparent;font-size:16px;cursor:pointer;color:var(--muted);border-radius:6px;width:28px;height:28px;}
+  .gt-head button:hover{background:var(--accent-soft);color:var(--accent);}
+  #ganttBody{flex:1;overflow:auto;}
+  .gt-empty{color:var(--muted);font-size:13px;text-align:center;padding:60px 24px;line-height:1.9;}
+  .gt-grid{position:relative;}
+  .gt-axis{display:flex;position:sticky;top:0;z-index:3;background:var(--card);border-bottom:1px solid var(--card-border);height:30px;}
+  .gt-label-h{position:sticky;left:0;z-index:4;background:var(--card);width:220px;flex-shrink:0;border-right:1px solid var(--card-border);}
+  .gt-tick{position:absolute;top:0;bottom:0;border-left:1px solid var(--card-border);opacity:.55;font-size:10px;color:var(--muted);padding-left:3px;white-space:nowrap;line-height:30px;}
+  .gt-row{display:flex;align-items:center;height:30px;border-bottom:1px solid rgba(0,0,0,.045);background:var(--card);cursor:pointer;}
+  .gt-row:hover{background:var(--bg);}
+  .gt-label{position:sticky;left:0;z-index:2;background:inherit;width:220px;flex-shrink:0;border-right:1px solid var(--card-border);
+    padding:0 8px;font-size:12.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .gt-track{position:relative;height:30px;flex-shrink:0;}
+  .gt-vline{position:absolute;top:0;bottom:0;border-left:1px solid rgba(0,0,0,.05);}
+  .gt-bar{position:absolute;top:7px;height:16px;border-radius:8px;background:var(--accent-soft);overflow:hidden;box-shadow:inset 0 0 0 1px var(--accent);}
+  .gt-bar i{display:block;height:100%;background:var(--accent);}
+  .gt-prog{position:absolute;top:0;height:30px;line-height:30px;font-size:10px;color:var(--muted);}
   #outline.open{display:flex;}
   #outlineHead{height:42px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
     padding:0 14px;border-bottom:1px solid var(--card-border);font-size:13px;font-weight:600;color:var(--ink);}
@@ -374,6 +419,105 @@
   .ol-text[contenteditable="true"]{background:#fff;box-shadow:0 0 0 2px var(--accent-soft);}
   .ol-mk{font-size:12px;flex-shrink:0;}
   .ol-row.done .ol-text{text-decoration:line-through;color:var(--muted);}
+  /* 大纲头部按钮 + 行内代办勾选 / 标签 / 进度（V0.0.6 完善） */
+  .ol-head-btns{display:flex;align-items:center;gap:2px;}
+  #outlineHead .ol-head-btns button{border:none;background:transparent;font-size:14px;cursor:pointer;color:var(--muted);border-radius:6px;width:24px;height:24px;}
+  #outlineHead .ol-head-btns button:hover{background:var(--accent-soft);color:var(--accent);}
+  .ol-check{width:14px;height:14px;flex-shrink:0;border:1.5px solid var(--muted);border-radius:50%;box-sizing:border-box;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;line-height:1;}
+  .ol-check::after{content:"✓";opacity:0;}
+  .ol-check.done{background:var(--accent);border-color:var(--accent);}
+  .ol-check.done::after{opacity:1;}
+  .ol-check:hover{border-color:var(--accent);}
+  .ol-tag{flex-shrink:0;background:var(--accent-soft);color:var(--accent);border-radius:5px;padding:0 5px;font-size:10.5px;font-weight:600;line-height:1.7;}
+  .ol-prog{flex-shrink:0;font-size:10px;color:var(--muted);}
+  /* 大纲：折叠三角 / 编号 / 小标记 / 拖拽排序（V0.0.6） */
+  .ol-tw{width:15px;height:15px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+    color:var(--muted);font-size:9px;cursor:pointer;border-radius:4px;user-select:none;}
+  .ol-tw:hover{background:var(--accent-soft);color:var(--accent);}
+  .ol-tw.none{visibility:hidden;cursor:default;}
+  .ol-num{font-size:10.5px;color:var(--muted);flex-shrink:0;}
+  .ol-mkc{flex-shrink:0;display:inline-flex;align-items:center;}
+  .ol-mkc .mk{cursor:default;}
+  .ol-mkc .mk:hover{transform:none;}
+  .ol-mkc .mk.prio{width:15px;height:15px;font-size:9.5px;}
+  .ol-mkc .mk.prog{width:14px;height:14px;}
+  .ol-mkc .mk.emoji{font-size:12px;}
+  #outlineBody{position:relative;}
+  .ol-row.oldrag{opacity:.35;}
+  body.ol-dragging{cursor:grabbing;user-select:none;}
+  body.ol-dragging .ol-text{pointer-events:none;}
+  .ol-row.drop-into{box-shadow:inset 0 0 0 2px var(--accent);background:var(--accent-soft);}
+  #olDropLine{position:absolute;height:2.5px;background:var(--accent);border-radius:2px;display:none;pointer-events:none;z-index:5;}
+
+  /* 节点图片（V0.0.6） */
+  .node-img{display:none;padding:9px 9px 0;justify-content:center;}
+  .node.has-img .node-img{display:flex;}
+  .node-img img{display:block;border-radius:8px;}
+  .node.img-drop .card{box-shadow:0 0 0 3px var(--accent),var(--shadow-hi);}
+
+  /* 节点任务信息行（V0.0.6）：负责人 / 进度条 / 起止日期 */
+  .task-row{display:none;align-items:center;justify-content:center;flex-wrap:wrap;gap:5px;
+    padding:0 12px 8px;font-size:11px;color:var(--muted);cursor:pointer;line-height:1.4;}
+  .node.has-task .task-row{display:flex;}
+  .task-row:hover{color:var(--accent);}
+  .task-prog{display:inline-block;width:44px;height:6px;border-radius:3px;background:var(--accent-soft);
+    overflow:hidden;vertical-align:middle;margin-right:3px;}
+  .task-prog i{display:block;height:100%;background:var(--accent);border-radius:3px;}
+  .task-sep{opacity:.5;}
+
+  /* 任务信息面板（V0.0.6） */
+  #taskPanel{position:fixed;z-index:130;display:none;width:262px;background:#fff;border:1px solid var(--card-border);
+    border-radius:12px;box-shadow:var(--shadow-hi);padding:13px 14px;}
+  #taskPanel.open{display:block;}
+  #taskPanel .tp-title{font-size:13px;font-weight:600;margin-bottom:10px;}
+  #taskPanel .tp-row{display:flex;align-items:center;gap:8px;margin-bottom:9px;}
+  #taskPanel .tp-row label{width:58px;flex-shrink:0;font-size:12px;color:var(--muted);}
+  #taskPanel .tp-row input[type=text],#taskPanel .tp-row input[type=date]{flex:1;min-width:0;border:1px solid var(--card-border);
+    border-radius:7px;padding:5px 8px;font-size:12.5px;font-family:inherit;color:var(--ink);outline:none;background:#fff;}
+  #taskPanel .tp-row input:focus{border-color:var(--accent);}
+  #taskPanel .tp-row input[type=range]{flex:1;accent-color:var(--accent);}
+  #taskPanel #tpProgVal{width:34px;flex-shrink:0;font-size:12px;color:var(--ink);text-align:right;}
+  #taskPanel .tp-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:11px;}
+
+  /* 标签 / 链接编辑弹层（替代 prompt，V0.0.6） */
+  #tagPanel,#linkPanel{position:fixed;z-index:130;display:none;width:250px;background:#fff;border:1px solid var(--card-border);
+    border-radius:12px;box-shadow:var(--shadow-hi);padding:12px 13px;}
+  #tagPanel.open,#linkPanel.open{display:block;}
+  .pop-title{font-size:13px;font-weight:600;margin-bottom:9px;}
+  #tagChips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;min-height:4px;}
+  #tagChips:empty{display:none;}
+  #tagChips .tchip{display:inline-flex;align-items:center;gap:4px;background:var(--accent-soft);color:var(--accent);
+    border-radius:6px;padding:2px 5px 2px 8px;font-size:12px;font-weight:600;}
+  #tagChips .tchip .x{cursor:pointer;font-size:13px;line-height:1;opacity:.7;border-radius:4px;padding:0 2px;}
+  #tagChips .tchip .x:hover{opacity:1;background:rgba(0,0,0,.08);}
+  #tagInput,#linkInput{width:100%;box-sizing:border-box;border:1px solid var(--card-border);border-radius:7px;
+    padding:6px 9px;font-size:12.5px;font-family:inherit;color:var(--ink);outline:none;background:#fff;}
+  #tagInput:focus,#linkInput:focus{border-color:var(--accent);}
+  #linkPanel .lp-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:11px;}
+
+  /* 标记面板：自定义标记 + 图例入口（V0.0.6） */
+  #markerPanel .mp-it.mp-add{font-size:15px;color:var(--muted);border-style:dashed;}
+  #markerPanel .mp-it.mp-add:hover{color:var(--accent);}
+  #markerPanel .mp-foot{margin-top:11px;padding-top:9px;border-top:1px solid var(--card-border);display:flex;justify-content:flex-end;}
+
+  /* 画布图例（V0.0.6）：标记含义对照表，可拖动、可编辑 */
+  #legendBox{position:absolute;z-index:8;min-width:150px;max-width:260px;background:var(--card);
+    border:1.5px solid var(--card-border);border-radius:12px;box-shadow:var(--shadow);padding:0 0 8px;}
+  #legendBox .lg-head{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:move;
+    font-size:12.5px;font-weight:600;color:var(--ink);padding:8px 10px 6px;border-bottom:1px solid var(--card-border);user-select:none;}
+  #legendBox .lg-close{cursor:pointer;color:var(--muted);font-size:12px;border-radius:5px;width:18px;height:18px;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  #legendBox .lg-close:hover{background:var(--accent-soft);color:var(--accent);}
+  #legendBox .lg-row{display:flex;align-items:center;gap:8px;padding:4px 10px;}
+  #legendBox .lg-chip{flex-shrink:0;display:inline-flex;align-items:center;}
+  #legendBox .lg-chip .mk{cursor:default;}
+  #legendBox .lg-chip .mk:hover{transform:none;}
+  #legendBox .lg-txt{flex:1;min-width:80px;font-size:12px;color:var(--ink);outline:none;padding:2px 4px;border-radius:5px;}
+  #legendBox .lg-txt:empty::before{content:"点击填写含义…";color:var(--muted);}
+  body.lang-en #legendBox .lg-txt:empty::before{content:"Click to add meaning…";}
+  #legendBox .lg-txt[contenteditable="true"]:focus{background:#fff;box-shadow:0 0 0 2px var(--accent-soft);}
+  #legendBox .lg-empty{padding:10px 12px;font-size:12px;color:var(--muted);}
   body.outline-open #canvas{left:300px;}
   body.outline-open #empty{left:300px;}
 
@@ -437,10 +581,6 @@
     background:rgba(245,246,248,.7);backdrop-filter:blur(2px);font-size:15px;color:var(--ink);}
   #exporting-mask.show{display:flex;}
   /* 阅读模式 */
-  #readBadge{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:40;display:none;
-    background:rgba(44,49,64,.86);color:#fff;font-size:12.5px;padding:7px 16px;border-radius:20px;
-    box-shadow:var(--shadow);pointer-events:none;backdrop-filter:blur(4px);letter-spacing:.3px;}
-  body.readonly #readBadge{display:block;}
   /* 设置弹窗 */
   #settingsMask{position:fixed;inset:0;z-index:320;display:none;align-items:center;justify-content:center;
     background:rgba(44,49,64,.28);backdrop-filter:blur(2px);}
@@ -649,7 +789,7 @@
     <div class="brand"><span class="logo">✦</span><div><div class="bt">ThoughtCanvas</div><div class="bs">思维画布</div></div></div>
     <div class="side-sub">大括号 · 蜘蛛网 · 多种结构图<br>自由梳理你的思路结构</div>
     <button id="scSettings" class="side-btn">⚙ 设置</button>
-    <div class="ver">V0.0.5</div>
+    <div class="ver">V0.0.6</div>
   </div>
   <div class="start-main">
     <h2 class="sh">开始</h2>
@@ -730,7 +870,6 @@
 <input type="file" id="fileInput" accept=".bmap,application/json" style="display:none">
 <a id="dl" style="display:none"></a>
 <div id="exporting-mask">正在导出…</div>
-<div id="readBadge">👁 阅读模式 · 只读浏览</div>
 <div id="focusBar"><span>🔎 聚焦：</span><span class="fb-name"></span><button class="fb-exit">退出聚焦</button></div>
 <div id="settingsMask">
   <div id="settingsBox">
@@ -764,13 +903,7 @@
             <option value="roman">I.II.III</option>
           </select>
           <div class="set-hint">给大括号思维导图的各级子主题自动编号（根/中心主题不编号），编号显示在卡片左上角。</div>
-          <div class="set-label" style="margin-top:16px">单节点间距调整方式</div>
-          <select id="segModeSel" class="set-select">
-            <option value="altDrag">Alt + 拖动节点</option>
-            <option value="handle">连线上拖手柄</option>
-            <option value="rclick">右键 → 间距滑条</option>
-          </select>
-          <div class="set-hint">在各种结构里单独微调某个节点到父级的连线段长。默认按住 Alt 拖动该节点即可；也可改用连线上的小圆点手柄，或右键菜单里的滑条。整图统一间距用顶部「整理」里的滑条。</div>
+          <div class="set-hint" style="margin-top:16px">在各种结构里，把某个节点直接拖开或拖动连线接到它的小圆点手柄，即可单独微调它到父级的连线段长（阅读模式下手柄不显示）；也可右键该节点用滑条精调。整图统一间距用顶部「整理」里的滑条。</div>
         </div>
         <div class="set-pane" id="paneKeys">
           <div class="km-hint">默认快捷键集中在键盘左半部分，方便右手用鼠标、左手按键。点右侧按键即可录制新快捷键，录制时按 Esc 取消、按 退格/Del 清空该项；撞键会自动让出。</div>
@@ -865,6 +998,8 @@
     <div id="overlayLayer"></div>
     <div id="marquee"></div>
     <div id="insLine"></div>
+    <div id="alignV" class="align-guide"></div>
+    <div id="alignH" class="align-guide"></div>
     <div id="snapHint">拖文本框到此</div>
   </div>
 </div>
@@ -891,6 +1026,30 @@
 <!-- 标记选择面板 -->
 <div id="markerPanel"><div class="mp-title">🏷 标记</div><div id="markerPanelBody"></div></div>
 
+<!-- 任务信息面板（负责人/进度/起止日期，给甘特图打底） -->
+<div id="taskPanel">
+  <div class="tp-title">📋 任务信息</div>
+  <div class="tp-row"><label>负责人</label><input type="text" id="tpWho" placeholder="谁来做？"></div>
+  <div class="tp-row"><label>进度</label><input type="range" id="tpProg" min="0" max="100" step="5" value="0"><span id="tpProgVal">—</span></div>
+  <div class="tp-row"><label>开始日期</label><input type="date" id="tpStart"></div>
+  <div class="tp-row"><label>截止日期</label><input type="date" id="tpEnd"></div>
+  <div class="tp-actions"><button class="btn" id="tpClear">清除</button><button class="btn primary" id="tpDone">完成</button></div>
+</div>
+
+<!-- 标签编辑弹层（替代 prompt） -->
+<div id="tagPanel">
+  <div class="pop-title">🔖 标签</div>
+  <div id="tagChips" class="tag-chips"></div>
+  <input id="tagInput" type="text" placeholder="输入标签后回车（逗号可分隔多个）">
+</div>
+
+<!-- 链接编辑弹层（替代 prompt） -->
+<div id="linkPanel">
+  <div class="pop-title">🔗 链接</div>
+  <input id="linkInput" type="text" placeholder="https://…">
+  <div class="lp-actions"><button class="btn" id="linkOpen">打开</button><button class="btn" id="linkClear">清除</button><button class="btn primary" id="linkDone">完成</button></div>
+</div>
+
 <!-- 备注编辑弹层 -->
 <div id="noteMask"><div id="noteBox">
   <div class="nb-title">📝 备注</div>
@@ -898,8 +1057,17 @@
   <div class="nb-actions"><button class="btn" id="noteClear">清除</button><button class="btn primary" id="noteSave">保存</button></div>
 </div></div>
 
+<!-- 底部画布标签栏（多画布） -->
+<div id="sheetTabs"><div id="sheetTabList"></div><button id="sheetAdd" title="新建画布">＋</button></div>
+
+<!-- 甘特图（项目管理：用任务信息的起止日期画进度条） -->
+<div id="ganttMask"><div id="ganttBox">
+  <div class="gt-head"><span>📅 甘特图 · 项目进度</span><button id="ganttClose" title="关闭甘特图">✕</button></div>
+  <div id="ganttBody"></div>
+</div></div>
+
 <!-- 大纲视图侧栏 -->
-<div id="outline"><div id="outlineHead"><span>📋 大纲</span><button id="outlineClose" title="关闭大纲">✕</button></div><div id="outlineBody"></div></div>
+<div id="outline"><div id="outlineHead"><span>📋 大纲</span><span class="ol-head-btns"><button id="olExpandAll" title="展开全部">⊞</button><button id="olCollapseAll" title="折叠全部">⊟</button><button id="outlineClose" title="关闭大纲">✕</button></span></div><div id="outlineBody"></div></div>
 
 <script src="libs/jspdf.umd.min.js"></script>
 <script>
@@ -924,11 +1092,14 @@ let scale = 1, panX = 0, panY = 0;   // 画布缩放 / 平移
 let curPath = null;                  // 当前文件路径（桌面版）
 let curName = '未命名思维导图';
 let dirty = false;
+// 多画布：全局状态(TB/BR/...) 始终代表“当前活动画布”，文件持有 sheets[]（每张=一份干净数据对象）
+let sheets = [];          // 非活动画布的数据对象；活动画布以全局状态为准
+let curSheet = 0;         // 当前活动画布索引
+let curSheetName = '画布 1';
 let history = [], hidx = -1;          // 撤销/重做历史
 let readonly = false;                 // 阅读模式：全局只读
 let compactMode = 0;                  // 整理：0=关 1=智能整理(纵向) 2=智能整理+(纵向+横向)
 let numbering = localStorage.getItem('bmap.numbering') || '';  // 主题编号：'' 关 | 'num' 1.2.3 | 'alpha' A.B.C | 'lalpha' a.b.c | 'roman' I.II.III
-let segMode = localStorage.getItem('bmap.segMode') || 'altDrag';  // 单节点间距调整方式：altDrag | handle | rclick
 const nid = p => p + (++idc);
 
 const BRANCH_GAP = 50;   // 父框右缘 → 子框左缘
@@ -1136,6 +1307,7 @@ function render(){
   for(const id in els){ if(!TB[id]) removeEl(id); }
   document.getElementById('empty').style.display = roots.length?'none':'flex';
   renderOutline();                                            // 大纲视图实时同步
+  renderLegend();                                             // 标记图例
 }
 
 function createEl(id){
@@ -1153,11 +1325,12 @@ function createEl(id){
        <span class="act-div"></span>
        <button class="act floatToggle" title="悬浮菜单（点击后可拖走）"><span class="bar"></span></button>
      </div>
-     <div class="card"><div class="num-badge"></div><div class="mk-row"></div><div class="card-inner"></div><div class="tag-row"></div><div class="lock-badge">🔒</div><div class="todo-check" title="代办：点击打勾/取消"></div></div>`;
+     <div class="card"><div class="num-badge"></div><div class="mk-row"></div><div class="node-img"><img alt="" draggable="false"></div><div class="card-inner"></div><div class="tag-row"></div><div class="task-row"></div><div class="lock-badge">🔒</div><div class="todo-check" title="代办：点击打勾/取消"></div></div>`;
   const card = node.querySelector('.card');
   const inner = node.querySelector('.card-inner');
   node._card=card; node._inner=inner;
   node._mkRow=node.querySelector('.mk-row'); node._tagRow=node.querySelector('.tag-row');
+  node._imgWrap=node.querySelector('.node-img'); node._taskRow=node.querySelector('.task-row');
   node._numBadge=node.querySelector('.num-badge');
   // 代办圆圈：点击切换勾选（阅读模式下也可用，不受 readonly 限制）
   const todoEl = node.querySelector('.todo-check');
@@ -1172,22 +1345,23 @@ function createEl(id){
   card.addEventListener('pointerdown', e=>{
     if(editing===id) return;
     if(e.button!==0) return;
+    if(spaceDown){ startCanvasPan(e); return; }   // 空格+拖 = 平移画布（哪怕按在节点上）
     if(readonly) return;          // 阅读模式：不可选中/拖动
     if(e.shiftKey){ e.stopPropagation(); toggleSel(id); return; }   // Shift = 仅切换选择
     const ctrl=e.ctrlKey||e.metaKey, alt=e.altKey;
     down={x:e.clientX,y:e.clientY}; moved=false;
     if(!ctrl) selectTb(id);
     const t=TB[id];
-    // 结构里 Alt+拖某节点 = 调它到父级的连线段长（仅 segMode='altDrag'、非大括号布局、非根、非矩阵）
+    // 结构里直接拖某节点 = 自由二维移动它+整棵子树（写 _offX/_offY，连线自动跟随；非大括号布局、非根、非矩阵；Ctrl 拖仍是重排/脱离）
     const pst = (t.parentBrace&&BR[t.parentBrace]) ? effStruct(BR[t.parentBrace].parentTb) : 'brace';
-    const canSeg = alt && segMode==='altDrag' && !!t.parentBrace && pst!=='brace' && pst!=='matrix';
-    const segHoriz = (pst==='logicR'||pst==='timeline'||pst==='fishbone');
-    const baseSeg = t._seg||0;
+    const canOff = !ctrl && !!t.parentBrace && pst!=='brace' && pst!=='matrix';
+    const baseOffX = t._offX||0, baseOffY = t._offY||0;
+    const offSkip = canOff ? subtreeSet(id) : null;   // 磁吸时跳过自己的子树
     // 普通拖：仅顶层可拖。Ctrl 拖：括号内子项→上下重排/横拉脱离；其它框→自由拖。Ctrl 单击=切换选择
-    if(!ctrl && !canSeg && !canDrag(id)) return;
+    if(!ctrl && !canOff && !canDrag(id)) return;
     const startCy=t._cy;
     const DETACH_X=64;                         // Ctrl 横向拉这么远才脱离大括号
-    let mode = canSeg ? 'seg' : (ctrl && t.parentBrace) ? 'reorder' : 'free';
+    let mode = canOff ? 'soff' : (ctrl && t.parentBrace) ? 'reorder' : 'free';
     let slot=null, baseX=0, baseY=0, detachedFrom=null;
     const enterFree=()=>{ const fb=TB[id].parentBrace; if(ctrl) detachBox(id); if(fb) detachedFrom=fb; baseX=t.x; baseY=t.y; mode='free'; };
     try{ card.setPointerCapture(e.pointerId); }catch(_){}
@@ -1196,9 +1370,14 @@ function createEl(id){
       if(!moved){ if(Math.abs(dx)+Math.abs(dy)<=4) return;
         moved=true; node.classList.add('dragging'); document.body.classList.add('dragging');
         if(mode==='free') enterFree(); }
-      if(mode==='seg'){
-        t._seg = Math.max(-300, Math.min(2000, baseSeg + (segHoriz?dx:dy)/scale));
-        layout(); showHint(null); return;
+      if(mode==='soff'){
+        t._offX = baseOffX + dx/scale; t._offY = baseOffY + dy/scale;
+        layout();
+        const sn=alignSnap(id, offSkip);              // 与别的文本框同横/纵坐标 → 磁吸 + 虚线
+        if(sn.snapX) t._offX += sn.dx;
+        if(sn.snapY) t._offY += sn.dy;
+        if(sn.snapX||sn.snapY) layout();
+        showAlignGuides(id, sn); showHint(null); return;
       }
       if(mode==='reorder'){
         if(Math.abs(dx/scale) > DETACH_X){ enterFree(); }   // 横向拉远 → 脱离
@@ -1218,7 +1397,7 @@ function createEl(id){
       const s=slot; showHint(null);
       if(!moved){ if(ctrl) toggleSel(id); return; }
       if(docType==='spider' && spiderTidyOn){ spiderTidyOn=false; updateTidyBtn(); }   // 手动移动 → 退出智能整理
-      if(mode==='seg'){ layout(); markDirty(); return; }       // 单节点段长调整完成
+      if(mode==='soff'){ hideAlignGuides(); layout(); markDirty(); return; }   // 单节点自由移动完成
       if(mode==='reorder'){ layout(); markDirty(); return; }   // 重排完成（未脱离）
       if(s) snapToSlot(id, s); else markDirty();
     };
@@ -1247,6 +1426,14 @@ function createEl(id){
   node.addEventListener('contextmenu', e=>{e.preventDefault(); e.stopPropagation();
     if(!(selSet.has(id) && selSet.size>1)) selectTb(id);   // 多选时右键保留多选
     openMenu(id, e.clientX, e.clientY);});
+
+  // 把图片文件拖到节点上 = 设为该节点的图片
+  node.addEventListener('dragover', e=>{ if(readonly) return;
+    const items=e.dataTransfer&&e.dataTransfer.items; if(items && [...items].some(i=>i.kind==='file')){ e.preventDefault(); e.stopPropagation(); node.classList.add('img-drop'); } });
+  node.addEventListener('dragleave', ()=>node.classList.remove('img-drop'));
+  node.addEventListener('drop', e=>{ node.classList.remove('img-drop'); if(readonly) return;
+    const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
+    if(f && /^image\//.test(f.type)){ e.preventDefault(); e.stopPropagation(); applyImageFile(id, f); } });
 
   els[id]=node; nodesL.appendChild(node);
 }
@@ -1531,28 +1718,42 @@ function placeSub(id,x,cardCy){
     ch.forEach(c=>{ const cc=TB[c]; placeSub(c, x+t._w+effGap(c,SG.rh,st), y+cc._sct+cc._h/2); y+=cc._sh+SG.rv; });
   }
 }
-// 肘形连线（逻辑图/组织结构图/树状图）
+// 肘形连线（逻辑图/组织结构图/树状图）——方向感知：子项被拖到母项哪一侧，就从那一侧连，连到子项朝向母项的那条边
 function elbowRight(b){
   const p=TB[b.parentTb]; const ch=b.children.filter(c=>TB[c]); if(!ch.length) return '';
-  const px=p._x+p._w, py=p._cy, busX=(px+Math.min(...ch.map(c=>TB[c]._x)))/2;
-  const cys=ch.map(c=>TB[c]._cy); const top=Math.min(py,...cys), bot=Math.max(py,...cys);
-  let d=`M ${F(px)} ${F(py)} H ${F(busX)} M ${F(busX)} ${F(top)} V ${F(bot)}`;
-  ch.forEach(c=>{ d+=` M ${F(busX)} ${F(TB[c]._cy)} H ${F(TB[c]._x)}`; });
+  const pcx=p._x+p._w/2, py=p._cy;
+  const rt=ch.filter(c=>TB[c]._x+TB[c]._w/2>=pcx), lf=ch.filter(c=>TB[c]._x+TB[c]._w/2<pcx);
+  let d='';
+  if(rt.length){ const px=p._x+p._w; const busX=(px+Math.min(...rt.map(c=>TB[c]._x)))/2;
+    const cys=rt.map(c=>TB[c]._cy); const top=Math.min(py,...cys), bot=Math.max(py,...cys);
+    d+=`M ${F(px)} ${F(py)} H ${F(busX)} M ${F(busX)} ${F(top)} V ${F(bot)}`;
+    rt.forEach(c=>{ d+=` M ${F(busX)} ${F(TB[c]._cy)} H ${F(TB[c]._x)}`; }); }
+  if(lf.length){ const px=p._x; const busX=(px+Math.max(...lf.map(c=>TB[c]._x+TB[c]._w)))/2;
+    const cys=lf.map(c=>TB[c]._cy); const top=Math.min(py,...cys), bot=Math.max(py,...cys);
+    d+=` M ${F(px)} ${F(py)} H ${F(busX)} M ${F(busX)} ${F(top)} V ${F(bot)}`;
+    lf.forEach(c=>{ d+=` M ${F(busX)} ${F(TB[c]._cy)} H ${F(TB[c]._x+TB[c]._w)}`; }); }
   return d;
 }
 function elbowDown(b){
   const p=TB[b.parentTb]; const ch=b.children.filter(c=>TB[c]); if(!ch.length) return '';
-  const pcx=p._x+p._w/2, pby=p._cy+p._h/2, busY=(pby+Math.min(...ch.map(c=>TB[c]._cy-TB[c]._h/2)))/2;
-  const cxs=ch.map(c=>TB[c]._x+TB[c]._w/2); const left=Math.min(pcx,...cxs), right=Math.max(pcx,...cxs);
-  let d=`M ${F(pcx)} ${F(pby)} V ${F(busY)} M ${F(left)} ${F(busY)} H ${F(right)}`;
-  ch.forEach(c=>{ const ccx=TB[c]._x+TB[c]._w/2; d+=` M ${F(ccx)} ${F(busY)} V ${F(TB[c]._cy-TB[c]._h/2)}`; });
+  const pcx=p._x+p._w/2, pcy=p._cy;
+  const bl=ch.filter(c=>TB[c]._cy>=pcy), ab=ch.filter(c=>TB[c]._cy<pcy);
+  let d='';
+  if(bl.length){ const pby=p._cy+p._h/2; const busY=(pby+Math.min(...bl.map(c=>TB[c]._cy-TB[c]._h/2)))/2;
+    const cxs=bl.map(c=>TB[c]._x+TB[c]._w/2); const left=Math.min(pcx,...cxs), right=Math.max(pcx,...cxs);
+    d+=`M ${F(pcx)} ${F(pby)} V ${F(busY)} M ${F(left)} ${F(busY)} H ${F(right)}`;
+    bl.forEach(c=>{ const ccx=TB[c]._x+TB[c]._w/2; d+=` M ${F(ccx)} ${F(busY)} V ${F(TB[c]._cy-TB[c]._h/2)}`; }); }
+  if(ab.length){ const pty=p._cy-p._h/2; const busY=(pty+Math.max(...ab.map(c=>TB[c]._cy+TB[c]._h/2)))/2;
+    const cxs=ab.map(c=>TB[c]._x+TB[c]._w/2); const left=Math.min(pcx,...cxs), right=Math.max(pcx,...cxs);
+    d+=` M ${F(pcx)} ${F(pty)} V ${F(busY)} M ${F(left)} ${F(busY)} H ${F(right)}`;
+    ab.forEach(c=>{ const ccx=TB[c]._x+TB[c]._w/2; d+=` M ${F(ccx)} ${F(busY)} V ${F(TB[c]._cy+TB[c]._h/2)}`; }); }
   return d;
 }
 function elbowTree(b){
   const p=TB[b.parentTb]; const ch=b.children.filter(c=>TB[c]); if(!ch.length) return '';
   const stemX=p._x+16, pby=p._cy+p._h/2, last=TB[ch[ch.length-1]];
   let d=`M ${F(stemX)} ${F(pby)} V ${F(last._cy)}`;
-  ch.forEach(c=>{ d+=` M ${F(stemX)} ${F(TB[c]._cy)} H ${F(TB[c]._x)}`; });
+  ch.forEach(c=>{ const cc=TB[c]; const nearX=(cc._x>=stemX)?cc._x:cc._x+cc._w; d+=` M ${F(stemX)} ${F(cc._cy)} H ${F(nearX)}`; });
   return d;
 }
 // 时间轴 / 鱼骨：主轴(spine) + 引线(bones) + 节点圆点(dots)
@@ -1600,7 +1801,7 @@ function structConn(bid, st){
   const b=BR[bid]; const ch=b.children.filter(c=>TB[c]); if(!ch.length) return '';
   const sp=selPrimary(); const sc=(sp&&TB[sp]&&TB[sp].brace===bid)?'sel':'';
   const lc=b.locked?'locked':'';
-  const hs=(segMode==='handle'&&st!=='matrix')?segHandles(b):'';
+  const hs=(!readonly&&st!=='matrix')?segHandles(b):'';   // 段长手柄：贴在连线接到文本框的端点上；阅读模式不显示
   if(st==='timeline' || st==='fishbone'){
     const r=axisConn(b, st);
     let s=`<path class="struct-axis ${sc}" d="${r.spine}"/>`;
@@ -1622,12 +1823,18 @@ function structConn(bid, st){
   if(!d) return '';
   return `<path class="elbow-path ${lc} ${sc}" d="${d}"/><path class="brace-hit" data-brace="${bid}" d="${d}"/>`+hs;
 }
-// segMode='handle' 时，每个子级在“父中心↔子中心”中点画一个可拖小圆，拖它改该子 _seg
+// 每个子级在“连线接到它文本框那条边的外侧一点点”画一个可拖小圆（避开卡片、点得到、始终落在真实连线上），拖它（或直接拖文本框）都自由二维移动该子及其子树
+function segHandleXY(st, p, c){
+  const pcx=p._x+p._w/2, pcy=p._cy;
+  if(st==='orgD') return (c._cy>=pcy) ? [c._x+c._w/2, c._cy-c._h/2-16] : [c._x+c._w/2, c._cy+c._h/2+16];   // 朝母项的上/下边外侧
+  if(st==='timeline'||st==='fishbone') return [c._x+c._w/2, c._cy + (c._cy<pcy ? c._h/2+16 : -c._h/2-16)]; // 朝主轴一侧外侧
+  return (c._x+c._w/2>=pcx) ? [c._x-16, c._cy] : [c._x+c._w+16, c._cy];  // 逻辑/树/树表：朝母项的左/右边外侧
+}
 function segHandles(b){
   const p=TB[b.parentTb]; if(!p) return '';
-  let s='';
+  const st=effStruct(b.parentTb); let s='';
   b.children.filter(c=>TB[c]).forEach(cid=>{ const c=TB[cid];
-    const hx=((p._x+p._w/2)+(c._x+c._w/2))/2, hy=(p._cy+c._cy)/2;
+    const [hx,hy]=segHandleXY(st,p,c);
     s+=`<circle class="seg-handle" data-seg="${cid}" cx="${F(hx)}" cy="${F(hy)}" r="5"/>`;
   });
   return s;
@@ -1635,13 +1842,40 @@ function segHandles(b){
 function startSegHandleDrag(cid, e){
   if(readonly||!TB[cid]) return;
   const t=TB[cid];
-  const pst=(t.parentBrace&&BR[t.parentBrace])?effStruct(BR[t.parentBrace].parentTb):'brace';
-  const horiz=(pst==='logicR'||pst==='timeline'||pst==='fishbone');
-  const base=t._seg||0, sx=e.clientX, sy=e.clientY;
-  const mv=ev=>{ const d=(horiz?ev.clientX-sx:ev.clientY-sy)/scale; t._seg=Math.max(-300,Math.min(2000,base+d)); layout(); };
-  const up=()=>{ window.removeEventListener('pointermove',mv); window.removeEventListener('pointerup',up); markDirty(); };
+  const baseX=t._offX||0, baseY=t._offY||0, sx=e.clientX, sy=e.clientY;   // 拖手柄 = 自由二维移动该子（与直接拖文本框一致）
+  const skip=subtreeSet(cid);
+  const mv=ev=>{ t._offX=baseX+(ev.clientX-sx)/scale; t._offY=baseY+(ev.clientY-sy)/scale; layout();
+    const sn=alignSnap(cid,skip); if(sn.snapX)t._offX+=sn.dx; if(sn.snapY)t._offY+=sn.dy; if(sn.snapX||sn.snapY)layout(); showAlignGuides(cid,sn); };
+  const up=()=>{ window.removeEventListener('pointermove',mv); window.removeEventListener('pointerup',up); hideAlignGuides(); markDirty(); };
   window.addEventListener('pointermove',mv); window.addEventListener('pointerup',up);
 }
+// ---- 对齐辅助线 + 磁吸：拖动某节点时，若其中心与别的文本框中心同一横/纵坐标（阈值内），吸附并显示虚线 ----
+function subtreeSet(id){ const s=new Set(); (function w(x){ if(!TB[x]||s.has(x))return; s.add(x); const b=TB[x]&&TB[x].brace?BR[TB[x].brace]:null; if(b)b.children.forEach(w); })(id); return s; }
+function alignSnap(id, skip){
+  const t=TB[id]; if(!t) return {dx:0,dy:0,snapX:false,snapY:false};
+  const cx=t._x+t._w/2, cy=t._cy, TH=6/scale;   // 磁吸阈值（世界像素，随缩放折算）
+  let bx=null,bxd=1e9,bxo=null, by=null,byd=1e9,byo=null;
+  for(const oid in TB){ if(oid===id||skip.has(oid)) continue; const o=TB[oid];
+    if(o._ghost||!els[oid]||els[oid].style.display==='none') continue;
+    if(focusId && !focusVisible(oid)) continue;
+    const ocx=o._x+o._w/2, ocy=o._cy;
+    const ax=Math.abs(ocx-cx); if(ax<TH && ax<bxd){ bxd=ax; bx=ocx-cx; bxo=oid; }
+    const ay=Math.abs(ocy-cy); if(ay<TH && ay<byd){ byd=ay; by=ocy-cy; byo=oid; }
+  }
+  return { dx:bx||0, dy:by||0, snapX:bx!==null, snapY:by!==null, ox:bxo, oy:byo };
+}
+function showAlignGuides(id, sn){
+  const t=TB[id]; const av=document.getElementById('alignV'), ah=document.getElementById('alignH');
+  if(sn.snapX && sn.ox && TB[sn.ox]){ const o=TB[sn.ox], gx=o._x+o._w/2;
+    const y1=Math.min(t._cy,o._cy)-44, y2=Math.max(t._cy,o._cy)+44;
+    av.style.display='block'; av.style.left=F(gx)+'px'; av.style.top=F(y1)+'px'; av.style.height=F(y2-y1)+'px'; av.style.width='0';
+  } else if(av) av.style.display='none';
+  if(sn.snapY && sn.oy && TB[sn.oy]){ const o=TB[sn.oy], gy=o._cy;
+    const x1=Math.min(t._x+t._w/2,o._x+o._w/2)-44, x2=Math.max(t._x+t._w/2,o._x+o._w/2)+44;
+    ah.style.display='block'; ah.style.top=F(gy)+'px'; ah.style.left=F(x1)+'px'; ah.style.width=F(x2-x1)+'px'; ah.style.height='0';
+  } else if(ah) ah.style.display='none';
+}
+function hideAlignGuides(){ const av=document.getElementById('alignV'), ah=document.getElementById('alignH'); if(av)av.style.display='none'; if(ah)ah.style.display='none'; }
 // 右键“调整此节点间距”弹出的小滑条
 function closeSegPanel(){ const d=document.getElementById('segPanel'); if(d) d.remove(); }
 function openSegPanel(id, cx, cy){
@@ -1966,10 +2200,10 @@ function flashLocked(id){ const c=els[id]&&els[id]._card; if(!c)return; c.animat
 //================ 右键菜单 ================
 // 每项分 常用(primary)/更多(more)/隐藏(hidden);保护项(逐节点高频、一次设一大堆)不可隐藏
 const CTX_DEFAULTS={ edit:'primary',addChild:'primary',anchor:'primary',marker:'primary',note:'primary',tag:'primary',link:'primary',bg:'primary',todo:'primary',focus:'primary',del:'primary',
-  addBrace:'more',callout:'more',struct:'more',segAdjust:'more',segReset:'more',lockTb:'more',lockBrace:'more',lockKids:'more' };
+  addBrace:'more',callout:'more',struct:'more',segAdjust:'more',segReset:'more',lockTb:'more',lockBrace:'more',lockKids:'more',img:'more',imgRemove:'more',task:'more',drill:'more' };
 const CTX_PROTECTED=new Set(['edit','addChild','anchor','marker','note','tag','link','bg','todo']);
-const CTX_LABELS={ edit:'编辑文字',addChild:'添加子文本框',anchor:'添加锚点',addBrace:'添加大括号',marker:'标记',note:'备注',tag:'标签',link:'链接',callout:'添加标注',struct:'切换此分支结构',segAdjust:'调整节点间距',segReset:'重置节点间距',focus:'聚焦此分支',bg:'背景颜色',todo:'设为代办',lockTb:'锁定文本框',lockBrace:'锁定大括号',lockKids:'锁定子项',del:'删除' };
-const CTX_EDITOR_KEYS=['edit','addChild','addBrace','anchor','marker','note','tag','link','callout','struct','segAdjust','segReset','focus','bg','todo','lockTb','lockBrace','lockKids','del'];
+const CTX_LABELS={ edit:'编辑文字',addChild:'添加子文本框',anchor:'添加锚点',addBrace:'添加大括号',marker:'标记',note:'备注',tag:'标签',link:'链接',img:'插入图片',imgRemove:'移除图片',task:'任务信息',drill:'在新画布中展开此分支',callout:'添加标注',struct:'切换此分支结构',segAdjust:'调整节点间距',segReset:'重置节点间距',focus:'聚焦此分支',bg:'背景颜色',todo:'设为代办',lockTb:'锁定文本框',lockBrace:'锁定大括号',lockKids:'锁定子项',del:'删除' };
+const CTX_EDITOR_KEYS=['edit','addChild','addBrace','anchor','marker','note','tag','link','img','imgRemove','task','drill','callout','struct','segAdjust','segReset','focus','bg','todo','lockTb','lockBrace','lockKids','del'];
 function loadCtxCfg(){ try{ const o=JSON.parse(localStorage.getItem('bmap.ctx')); return (o&&typeof o==='object')?o:{}; }catch(e){ return {}; } }
 let ctxCfg=loadCtxCfg();
 function saveCtxCfg(){ try{ localStorage.setItem('bmap.ctx', JSON.stringify(ctxCfg)); }catch(e){} }
@@ -2019,8 +2253,11 @@ function openMenu(id, cx, cy){
       {key:'anchor',ic:'⚓', label:'添加锚点', fn:()=>startAddAnchor(id)},
       {key:'marker',ic:'🏷', label:'标记…', fn:()=>openMarkerPanel(id, cx, cy)},
       {key:'note',ic:'📝', label:(t.note?'编辑备注…':'添加备注…'), fn:()=>openNote(id)},
-      {key:'tag',ic:'🔖', label:'标签…', fn:()=>addTags(id)},
-      {key:'link',ic:'🔗', label:(t.link?'编辑链接…':'添加链接…'), fn:()=>setLink(id)},
+      {key:'tag',ic:'🔖', label:'标签…', fn:()=>openTagPanel(id, cx, cy)},
+      {key:'link',ic:'🔗', label:(t.link?'编辑链接…':'添加链接…'), fn:()=>openLinkPanel(id, cx, cy)},
+      {key:'img',ic:'🖼', label:(t.img?'更换图片…':'插入图片…'), fn:()=>pickImage(id)},
+      ...(t.img?[{key:'imgRemove',ic:'🚫', label:'移除图片', fn:()=>removeImage(id)}]:[]),
+      {key:'task',ic:'📋', label:(t.task?'编辑任务信息…':'任务信息…'), fn:()=>openTaskPanel(id, cx, cy)},
       {key:'bg',ic:'🎨', label:'背景颜色…', fn:()=>openColorPanel([id], cx, cy)},
       {key:'todo',ic: t.todo?'⭕':'✅', label: t.todo?'取消代办':'设为代办', fn:()=>setTodo([id], !t.todo)},
       {key:'lockTb',ic: t.locked?'🔓':'🔒', label:t.locked?'解锁文本框':'锁定文本框', fn:()=>toggleLockTb(id)},
@@ -2037,12 +2274,16 @@ function openMenu(id, cx, cy){
       {key:'addBrace',ic:'｛', label:hasBrace?'已有大括号':'添加大括号', dis:hasBrace||editLocked, fn:()=>{ensureBrace(id);addChild(id);}},
       {key:'marker',ic:'🏷', label:'标记…', fn:()=>openMarkerPanel(id, cx, cy)},
       {key:'note',ic:'📝', label:(t.note?'编辑备注…':'添加备注…'), fn:()=>openNote(id)},
-      {key:'tag',ic:'🔖', label:'标签…', fn:()=>addTags(id)},
-      {key:'link',ic:'🔗', label:(t.link?'编辑链接…':'添加链接…'), fn:()=>setLink(id)},
+      {key:'tag',ic:'🔖', label:'标签…', fn:()=>openTagPanel(id, cx, cy)},
+      {key:'link',ic:'🔗', label:(t.link?'编辑链接…':'添加链接…'), fn:()=>openLinkPanel(id, cx, cy)},
+      {key:'img',ic:'🖼', label:(t.img?'更换图片…':'插入图片…'), fn:()=>pickImage(id)},
+      ...(t.img?[{key:'imgRemove',ic:'🚫', label:'移除图片', fn:()=>removeImage(id)}]:[]),
+      {key:'task',ic:'📋', label:(t.task?'编辑任务信息…':'任务信息…'), fn:()=>openTaskPanel(id, cx, cy)},
       {key:'callout',ic:'💬', label:'添加标注', fn:()=>addCallout(id)},
       {key:'struct',ic:'🧩', label:'切换此分支结构', fn:()=>{ selectTb(id); openStructMenu(); }},
-      ...((segMode==='rclick' && t.parentBrace && BR[t.parentBrace] && effStruct(BR[t.parentBrace].parentTb)!=='brace' && effStruct(BR[t.parentBrace].parentTb)!=='matrix') ? [{key:'segAdjust',ic:'📏', label:'调整此节点间距', fn:()=>openSegPanel(id, cx, cy)}] : []),
-      ...((typeof t._seg==='number' && t._seg!==0) ? [{key:'segReset',ic:'↺', label:'重置此节点间距', fn:()=>{ delete TB[id]._seg; layout(); markDirty(); }}] : []),
+      {key:'drill',ic:'🗂', label:'在新画布中展开此分支', fn:()=>drillDownToNewSheet(id)},
+      ...((t.parentBrace && BR[t.parentBrace] && effStruct(BR[t.parentBrace].parentTb)!=='brace' && effStruct(BR[t.parentBrace].parentTb)!=='matrix') ? [{key:'segAdjust',ic:'📏', label:'调整此节点间距', fn:()=>openSegPanel(id, cx, cy)}] : []),
+      ...(((typeof t._seg==='number' && t._seg!==0) || t._offX || t._offY) ? [{key:'segReset',ic:'↺', label:'重置此节点位置', fn:()=>{ delete TB[id]._seg; delete TB[id]._offX; delete TB[id]._offY; layout(); markDirty(); }}] : []),
       {key:'focus',ic: focusId===id?'🔙':'🔎', label: focusId===id?'退出聚焦':'聚焦此分支', dis:!hasBrace&&focusId!==id, fn:()=>{ focusId===id?exitFocus():setFocus(id); }},
       {key:'bg',ic:'🎨', label:'背景颜色…', fn:()=>openColorPanel([id], cx, cy)},
       {key:'todo',ic: t.todo?'⭕':'✅', label: t.todo?'取消代办':'设为代办', fn:()=>setTodo([id], !t.todo)},
@@ -2291,33 +2532,60 @@ function markDirtySoft(){ dirty=true; refreshFileLabel(); }   // 连续输入时
 const MARKER_DEFS={
   p1:{g:'prio',c:'#e3604f',t:'1'}, p2:{g:'prio',c:'#ef8f3c',t:'2'}, p3:{g:'prio',c:'#e9b938',t:'3'},
   p4:{g:'prio',c:'#5ab867',t:'4'}, p5:{g:'prio',c:'#3f9bd6',t:'5'}, p6:{g:'prio',c:'#7b6cf0',t:'6'},
+  p7:{g:'prio',c:'#8a93a6',t:'7'},
   t0:{g:'prog',p:0}, t1:{g:'prog',p:25}, t2:{g:'prog',p:50}, t3:{g:'prog',p:75}, t4:{g:'prog',p:100},
+  te1:{g:'prog',p:12.5}, te3:{g:'prog',p:37.5}, te5:{g:'prog',p:62.5}, te7:{g:'prog',p:87.5},
   flag:{g:'emoji',e:'🚩'}, star:{g:'emoji',e:'⭐'}, people:{g:'emoji',e:'👤'},
   yes:{g:'emoji',e:'✅'}, no:{g:'emoji',e:'❌'}, q:{g:'emoji',e:'❓'}, excl:{g:'emoji',e:'❗'},
   idea:{g:'emoji',e:'💡'}, heart:{g:'emoji',e:'❤️'}, like:{g:'emoji',e:'👍'}, fire:{g:'emoji',e:'🔥'},
+  warn:{g:'emoji',e:'⚠️'}, pin:{g:'emoji',e:'📌'}, bell:{g:'emoji',e:'🔔'}, target:{g:'emoji',e:'🎯'},
+  trophy:{g:'emoji',e:'🏆'}, money:{g:'emoji',e:'💰'}, cal:{g:'emoji',e:'📅'}, clock:{g:'emoji',e:'⏰'},
+  mail:{g:'emoji',e:'✉️'}, clip:{g:'emoji',e:'📎'},
 };
 const MARKER_GROUPS=[
-  {name:'优先级（同组互斥）', keys:['p1','p2','p3','p4','p5','p6']},
-  {name:'进度（同组互斥）',   keys:['t0','t1','t2','t3','t4']},
+  {name:'优先级（同组互斥）', keys:['p1','p2','p3','p4','p5','p6','p7']},
+  {name:'进度（同组互斥）',   keys:['t0','te1','t1','te3','t2','te5','t3','te7','t4']},
   {name:'旗帜 · 星 · 人物',    keys:['flag','star','people']},
-  {name:'符号',               keys:['yes','no','q','excl','idea','heart','like','fire']},
+  {name:'符号',               keys:['yes','no','q','excl','idea','heart','like','fire','warn','pin','bell','target','trophy','money','cal','clock','mail','clip']},
 ];
+// 自定义标记（存在 .bmap 里，随文件走）：key 形如 "c:😀"，冒号后即显示内容，无需注册表
+let customMarkers=[];
 function markerChip(key, attrs=''){
-  const d=MARKER_DEFS[key]; if(!d) return '';
+  const d=MARKER_DEFS[key];
+  if(!d){ if(typeof key==='string' && key.startsWith('c:')) return `<span class="mk emoji" ${attrs}>${escH(key.slice(2))}</span>`; return ''; }
   if(d.g==='prio') return `<span class="mk prio" style="background:${d.c}" ${attrs}>${d.t}</span>`;
   if(d.g==='prog'){ const deg=d.p*3.6; return `<span class="mk prog" style="background:conic-gradient(var(--accent) ${deg}deg,#fff 0)" ${attrs}></span>`; }
   return `<span class="mk emoji" ${attrs}>${d.e}</span>`;
 }
 function renderExtras(id){
   const t=TB[id], e=els[id]; if(!e) return;
-  if(t._ghost){ e.classList.remove('has-mk','has-tag'); e._mkRow.innerHTML=''; e._tagRow.innerHTML=''; return; }
+  if(t._ghost){ e.classList.remove('has-mk','has-tag','has-img','has-task'); e._mkRow.innerHTML=''; e._tagRow.innerHTML=''; e._taskRow.innerHTML=''; return; }
   let mk='';
-  (t.markers||[]).forEach(k=>{ if(MARKER_DEFS[k]) mk+=markerChip(k, `data-mk="${k}" title="点击移除标记"`); });
+  (t.markers||[]).forEach(k=>{ const ch=markerChip(k, `data-mk="${escH(k)}" title="点击移除标记"`); if(ch) mk+=ch; });
   if(t.note && t.note.trim()) mk+=`<span class="mk emoji" data-note="1" title="查看/编辑备注">📝</span>`;
   if(t.link && t.link.trim()) mk+=`<span class="mk emoji" data-link="1" title="${escH(t.link)}">🔗</span>`;
   e._mkRow.innerHTML=mk; e.classList.toggle('has-mk', mk!=='');
   let tg=''; (t.tags||[]).forEach((s,i)=>{ tg+=`<span class="tag" data-tag="${i}" title="点击删除标签：${escH(s)}">${escH(s)}</span>`; });
   e._tagRow.innerHTML=tg; e.classList.toggle('has-tag', tg!=='');
+  // 节点图片：宽高写死在属性上，图片未解码完布局也不会跳
+  const im=e._imgWrap.firstElementChild;
+  if(t.img && t.img.src){
+    if(im.getAttribute('src')!==t.img.src) im.setAttribute('src', t.img.src);
+    const iw=Math.max(1,Math.min(t.img.w||120,220));                  // 显示宽上限 220，等比钳制
+    im.width=iw; im.height=Math.max(1,Math.round(iw*(t.img.h||90)/(t.img.w||120)));
+    e.classList.add('has-img');
+  } else { if(im.getAttribute('src')) im.removeAttribute('src'); e.classList.remove('has-img'); }
+  // 任务信息行：负责人 · 进度条 · 起止日期
+  let tk='';
+  if(t.task){
+    const parts=[];
+    if(t.task.who) parts.push('👤 '+escH(t.task.who));
+    if(typeof t.task.prog==='number') parts.push(`<span class="task-prog"><i style="width:${t.task.prog}%"></i></span>${t.task.prog}%`);
+    if(t.task.start||t.task.end){ const f=s=>{ if(!s) return ''; const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s); return m?(+m[2])+'/'+(+m[3]):escH(s); };
+      parts.push('📅 '+(t.task.start?f(t.task.start):'')+((t.task.start&&t.task.end)?' → ':'')+(t.task.end?f(t.task.end):'')); }
+    tk=parts.join('<span class="task-sep">·</span>');
+  }
+  e._taskRow.innerHTML=tk; e.classList.toggle('has-task', tk!=='');
   if(!e._extrasBound){ e._extrasBound=true;
     e._mkRow.addEventListener('click', ev=>{ ev.stopPropagation();
       const w=ev.target.closest('[data-mk]'); if(w){ if(!readonly) toggleMarker(id, w.dataset.mk); return; }
@@ -2325,8 +2593,10 @@ function renderExtras(id){
       if(ev.target.closest('[data-link]')){ openLink(id); return; } });
     e._tagRow.addEventListener('click', ev=>{ ev.stopPropagation();
       const tEl=ev.target.closest('[data-tag]'); if(tEl && !readonly) removeTag(id, +tEl.dataset.tag); });
+    e._taskRow.addEventListener('click', ev=>{ ev.stopPropagation(); if(!readonly) openTaskPanel(id, ev.clientX, ev.clientY); });
     e._mkRow.addEventListener('pointerdown', ev=>ev.stopPropagation());   // 不触发卡片拖动
     e._tagRow.addEventListener('pointerdown', ev=>ev.stopPropagation());
+    e._taskRow.addEventListener('pointerdown', ev=>ev.stopPropagation());
   }
 }
 function toggleMarker(id, key){
@@ -2344,21 +2614,65 @@ function toggleMarker(id, key){
   if(markerPanel.classList.contains('open') && mkTarget===id) refreshMarkerPanel();
 }
 function removeTag(id, i){ const t=TB[id]; if(!t||!t.tags) return; t.tags.splice(i,1); if(!t.tags.length) delete t.tags; render(); layout(); markDirty(); }
-function addTags(id){
-  if(readonly) return; const t=TB[id]; if(!t) return;
-  const v=prompt('标签（多个用逗号分隔）：', (t.tags||[]).join(', '));
-  if(v===null) return;
-  const arr=v.split(/[,，]/).map(s=>s.trim()).filter(Boolean);
-  if(arr.length) t.tags=arr; else delete t.tags;
-  render(); layout(); markDirty();
+// ----- 标签编辑弹层（替代 prompt）：已有标签=可删 chip，输入回车/逗号添加 -----
+const tagPanel=document.getElementById('tagPanel');
+const tagInput=document.getElementById('tagInput');
+let tagTarget=null;
+function openTagPanel(id, cx, cy){
+  if(readonly||!TB[id]) return; tagTarget=id; refreshTagChips();
+  tagInput.value='';
+  tagPanel.classList.add('open'); translateNode(tagPanel);
+  const w=tagPanel.offsetWidth,h=tagPanel.offsetHeight;
+  tagPanel.style.left=Math.min((cx||160),innerWidth-w-8)+'px';
+  tagPanel.style.top=Math.min((cy||110),innerHeight-h-8)+'px';
+  setTimeout(()=>tagInput.focus(),30);
 }
-function setLink(id){
-  if(readonly) return; const t=TB[id]; if(!t) return;
-  const v=prompt('超链接 / 网址（留空可删除）：', t.link||'https://');
-  if(v===null) return;
-  const s=v.trim(); if(s) t.link=s; else delete t.link;
-  render(); layout(); markDirty();
+function refreshTagChips(){
+  const t=TB[tagTarget]; if(!t) return;
+  const box=document.getElementById('tagChips');
+  box.innerHTML=(t.tags||[]).map((s,i)=>`<span class="tchip">${escH(s)}<span class="x" data-i="${i}" title="删除">✕</span></span>`).join('');
+  box.querySelectorAll('.x').forEach(x=> x.onclick=()=>{ removeTag(tagTarget,+x.dataset.i); refreshTagChips(); });
 }
+function commitTagInput(){
+  const t=TB[tagTarget]; if(!t) return;
+  const arr=tagInput.value.split(/[,，]/).map(s=>s.trim()).filter(Boolean);
+  if(arr.length){ t.tags=(t.tags||[]).concat(arr.filter(s=>!(t.tags||[]).includes(s))); render(); layout(); markDirty(); }
+  tagInput.value=''; refreshTagChips();
+}
+tagInput.addEventListener('keydown',e=>{ e.stopPropagation();
+  if(e.key==='Enter'||e.key===','||e.key==='，'){ e.preventDefault(); commitTagInput(); }
+  else if(e.key==='Escape'){ e.preventDefault(); closeTagPanel(); }
+  else if(e.key==='Backspace' && tagInput.value==='' && TB[tagTarget] && (TB[tagTarget].tags||[]).length){
+    removeTag(tagTarget, TB[tagTarget].tags.length-1); refreshTagChips(); } });
+function closeTagPanel(){ if(tagInput.value.trim()) commitTagInput(); tagPanel.classList.remove('open'); tagTarget=null; }
+document.addEventListener('pointerdown',e=>{ if(tagPanel.classList.contains('open') && !tagPanel.contains(e.target)) closeTagPanel(); });
+// 兼容旧调用名
+function addTags(id, cx, cy){ openTagPanel(id, cx, cy); }
+
+// ----- 链接编辑弹层（替代 prompt） -----
+const linkPanel=document.getElementById('linkPanel');
+const linkInput=document.getElementById('linkInput');
+let linkTarget=null;
+function openLinkPanel(id, cx, cy){
+  if(readonly||!TB[id]) return; linkTarget=id;
+  linkInput.value=TB[id].link||'';
+  linkPanel.classList.add('open'); translateNode(linkPanel);
+  const w=linkPanel.offsetWidth,h=linkPanel.offsetHeight;
+  linkPanel.style.left=Math.min((cx||160),innerWidth-w-8)+'px';
+  linkPanel.style.top=Math.min((cy||110),innerHeight-h-8)+'px';
+  setTimeout(()=>linkInput.focus(),30);
+}
+function saveLink(){ const t=TB[linkTarget]; if(!t) return; const s=linkInput.value.trim();
+  if(s) t.link=s; else delete t.link; render(); layout(); markDirty(); }
+function closeLinkPanel(commit){ if(commit!==false && linkTarget) saveLink(); linkPanel.classList.remove('open'); linkTarget=null; }
+linkInput.addEventListener('keydown',e=>{ e.stopPropagation();
+  if(e.key==='Enter'){ e.preventDefault(); closeLinkPanel(true); }
+  else if(e.key==='Escape'){ e.preventDefault(); closeLinkPanel(false); } });
+document.getElementById('linkDone').onclick=()=>closeLinkPanel(true);
+document.getElementById('linkClear').onclick=()=>{ linkInput.value=''; };
+document.getElementById('linkOpen').onclick=()=>{ if(linkInput.value.trim()){ saveLink(); openLink(linkTarget); } };
+document.addEventListener('pointerdown',e=>{ if(linkPanel.classList.contains('open') && !linkPanel.contains(e.target)) closeLinkPanel(true); });
+function setLink(id, cx, cy){ openLinkPanel(id, cx, cy); }
 function openLink(id){
   const t=TB[id]; if(!t||!t.link) return;
   let u=t.link.trim(); if(!/^[a-z][a-z0-9+.-]*:/i.test(u)) u='https://'+u;
@@ -2377,13 +2691,31 @@ function openMarkerPanel(id, cx, cy){
   markerPanel.style.top=Math.min(cy,innerHeight-h-8)+'px';
 }
 function refreshMarkerPanel(){
-  const t=TB[mkTarget]; if(!t) return;
-  const has=k=>(t.markers||[]).includes(k);
+  const tb=TB[mkTarget]; if(!tb) return;
+  const has=k=>(tb.markers||[]).includes(k);
   markerPanelBody.innerHTML=MARKER_GROUPS.map(g=>
     `<div class="mp-grp">${g.name}</div><div class="mp-items">`+
     g.keys.map(k=>`<div class="mp-it ${has(k)?'on':''}" data-k="${k}">${markerChip(k)}</div>`).join('')+
-    `</div>`).join('');
-  markerPanelBody.querySelectorAll('.mp-it').forEach(el=> el.onclick=()=>toggleMarker(mkTarget, el.dataset.k));
+    `</div>`).join('')
+    +`<div class="mp-grp">自定义标记</div><div class="mp-items">`
+    +customMarkers.map(s=>{ const k='c:'+s; return `<div class="mp-it ${has(k)?'on':''}" data-k="${escH(k)}" title="右键点击可从自定义组移除">${markerChip(k)}</div>`; }).join('')
+    +`<div class="mp-it mp-add" title="添加自定义标记（emoji 或 1-2 个字）">＋</div></div>`
+    +`<div class="mp-foot"><button class="btn" id="mpLegendBtn">${LG.on?'隐藏图例':'显示图例'}</button></div>`;
+  markerPanelBody.querySelectorAll('.mp-it[data-k]').forEach(el=>{
+    el.onclick=()=>toggleMarker(mkTarget, el.dataset.k);
+    if(el.dataset.k.startsWith('c:')) el.oncontextmenu=ev=>{ ev.preventDefault(); ev.stopPropagation();
+      const s=el.dataset.k.slice(2); const i=customMarkers.indexOf(s);
+      if(i>=0){ customMarkers.splice(i,1); markDirty(); refreshMarkerPanel(); } };
+  });
+  const addBtn=markerPanelBody.querySelector('.mp-add');
+  if(addBtn) addBtn.onclick=()=>{
+    const v=prompt(t('输入 emoji 或 1-2 个字：')); if(v===null) return;
+    const s=v.trim().slice(0,4); if(!s) return;
+    if(!customMarkers.includes(s)){ customMarkers.push(s); markDirty(); }
+    refreshMarkerPanel();
+  };
+  const lgBtn=markerPanelBody.querySelector('#mpLegendBtn');
+  if(lgBtn) lgBtn.onclick=()=>{ toggleLegend(); refreshMarkerPanel(); };
   translateNode(markerPanel);
 }
 function closeMarkerPanel(){ markerPanel.classList.remove('open'); mkTarget=null; }
@@ -2410,10 +2742,169 @@ noteArea.addEventListener('keydown',e=>{ e.stopPropagation();
   if(e.key==='Escape'){ e.preventDefault(); closeNote(); }
   if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); saveNote(); } });
 
+// ----- 节点图片：文件/拖入/粘贴 → 压到 480px 内的 dataURL 存进 .bmap，随文件走 -----
+function applyImageFile(id, file){                       // 供 文件选择 / 拖入节点 / Ctrl+V 粘贴 共用
+  if(readonly || !TB[id] || !file || !/^image\//.test(file.type)) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    const img=new Image();
+    img.onload=()=>{
+      const MAX=480;                                     // 存储上限，兼顾清晰度和 .bmap 体积
+      const w=img.naturalWidth||1, h=img.naturalHeight||1;
+      const sc=Math.min(1, MAX/Math.max(w,h));
+      const cw=Math.max(1,Math.round(w*sc)), ch=Math.max(1,Math.round(h*sc));
+      let src=rd.result;
+      if(sc<1){ const cv=document.createElement('canvas'); cv.width=cw; cv.height=ch;
+        cv.getContext('2d').drawImage(img,0,0,cw,ch);
+        src = file.type==='image/png' ? cv.toDataURL('image/png') : cv.toDataURL('image/jpeg',.85); }
+      const dw=Math.min(cw,220), dh=Math.max(1,Math.round(dw*ch/cw));   // 节点内显示尺寸
+      if(!TB[id]) return;
+      TB[id].img={src, w:dw, h:dh};
+      render(); layout(); markDirty();
+    };
+    img.onerror=()=>alert(t('无法读取这张图片'));
+    img.src=rd.result;
+  };
+  rd.readAsDataURL(file);
+}
+function pickImage(id){
+  if(readonly || !TB[id]) return;
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
+  inp.onchange=()=>{ const f=inp.files && inp.files[0]; if(f) applyImageFile(id, f); };
+  inp.click();
+}
+function removeImage(id){ const tb=TB[id]; if(!tb||!tb.img) return; delete tb.img; render(); layout(); markDirty(); }
+// Ctrl+V 把剪贴板里的图片贴到当前选中的单个节点上
+window.addEventListener('paste', e=>{
+  if(readonly || editing) return;
+  const ae=document.activeElement;
+  if(ae && (ae.isContentEditable || ae.tagName==='INPUT' || ae.tagName==='TEXTAREA')) return;  // 输入框里正常粘贴文字
+  const p=selPrimary(); if(!p || !TB[p]) return;
+  const items=e.clipboardData && e.clipboardData.items; if(!items) return;
+  for(const it of items){ if(it.type && it.type.indexOf('image')===0){ const f=it.getAsFile(); if(f){ e.preventDefault(); applyImageFile(p, f); return; } } }
+});
+
+// ----- 任务信息面板：负责人 / 进度 / 起止日期（甘特图的数据底座） -----
+const taskPanel=document.getElementById('taskPanel');
+let tkTarget=null;
+function openTaskPanel(id, cx, cy){
+  if(readonly || !TB[id]) return; tkTarget=id;
+  const k=TB[id].task||{};
+  document.getElementById('tpWho').value = k.who||'';
+  document.getElementById('tpProg').value = (typeof k.prog==='number')?k.prog:0;
+  document.getElementById('tpProgVal').textContent = (typeof k.prog==='number')?k.prog+'%':'—';
+  document.getElementById('tpStart').value = k.start||'';
+  document.getElementById('tpEnd').value = k.end||'';
+  taskPanel.classList.add('open');
+  const w=taskPanel.offsetWidth,h=taskPanel.offsetHeight;
+  taskPanel.style.left=Math.min(cx,innerWidth-w-8)+'px';
+  taskPanel.style.top=Math.min(cy,innerHeight-h-8)+'px';
+  setTimeout(()=>document.getElementById('tpWho').focus(),30);
+}
+function applyTask(progTouched){
+  const tb=TB[tkTarget]; if(!tb) return;
+  const who=document.getElementById('tpWho').value.trim();
+  const prog=+document.getElementById('tpProg').value;
+  const start=document.getElementById('tpStart').value;
+  const end=document.getElementById('tpEnd').value;
+  const old=tb.task||{};
+  const hasProg = progTouched || (typeof old.prog==='number');
+  document.getElementById('tpProgVal').textContent = hasProg ? prog+'%' : '—';
+  const k={};
+  if(who) k.who=who;
+  if(hasProg) k.prog=prog;
+  if(start) k.start=start;
+  if(end) k.end=end;
+  if(Object.keys(k).length) tb.task=k; else delete tb.task;
+  render(); layout(); markDirtySoft();
+}
+function closeTaskPanel(commit){
+  if(!taskPanel.classList.contains('open')) return;
+  taskPanel.classList.remove('open');
+  if(commit!==false && tkTarget && dirty) pushHistory();   // 关面板时一次性入撤销栈
+  tkTarget=null;
+}
+document.getElementById('tpWho').addEventListener('input', ()=>applyTask(false));
+document.getElementById('tpProg').addEventListener('input', ()=>applyTask(true));
+document.getElementById('tpStart').addEventListener('change', ()=>applyTask(false));
+document.getElementById('tpEnd').addEventListener('change', ()=>applyTask(false));
+document.getElementById('tpDone').onclick=()=>closeTaskPanel(true);
+document.getElementById('tpClear').onclick=()=>{ const tb=TB[tkTarget]; if(tb&&tb.task){ delete tb.task; render(); layout(); markDirty(); }
+  document.getElementById('tpWho').value=''; document.getElementById('tpProg').value=0;
+  document.getElementById('tpProgVal').textContent='—'; document.getElementById('tpStart').value=''; document.getElementById('tpEnd').value=''; };
+taskPanel.addEventListener('keydown',e=>{ e.stopPropagation();
+  if(e.key==='Escape'){ e.preventDefault(); closeTaskPanel(true); }
+  if(e.key==='Enter' && e.target.type!=='date'){ e.preventDefault(); closeTaskPanel(true); } });
+document.addEventListener('pointerdown',e=>{ if(taskPanel.classList.contains('open') && !taskPanel.contains(e.target)) closeTaskPanel(true); });
+
+// ----- 图例：画布上的标记含义对照表（存 .bmap，可拖动、可编辑含义） -----
+let LG={on:false,x:null,y:null,texts:{}};
+function legendDump(){ return {on:LG.on,x:LG.x,y:LG.y,texts:Object.assign({},LG.texts)}; }
+function loadLegend(d){ const l=d&&d.legend;
+  LG = l ? {on:!!l.on, x:(typeof l.x==='number')?l.x:null, y:(typeof l.y==='number')?l.y:null,
+            texts:(l.texts&&typeof l.texts==='object')?Object.assign({},l.texts):{}}
+         : {on:false,x:null,y:null,texts:{}}; }
+function usedMarkerKeys(){
+  const set=new Set();
+  for(const id in TB){ (TB[id].markers||[]).forEach(k=>set.add(k)); }
+  const ordered=[];
+  MARKER_GROUPS.forEach(g=>g.keys.forEach(k=>{ if(set.has(k)) ordered.push(k); }));
+  set.forEach(k=>{ if(typeof k==='string' && k.startsWith('c:')) ordered.push(k); });
+  return ordered;
+}
+function toggleLegend(){
+  LG.on=!LG.on;
+  if(LG.on && LG.x==null){                 // 首次打开：放到内容左上角外侧
+    let mx=Infinity,my=Infinity;
+    for(const id in TB){ const tb=TB[id]; if(tb._x!=null){ mx=Math.min(mx,tb._x); my=Math.min(my,tb._cy||0); } }
+    LG.x = isFinite(mx)? mx : 2800; LG.y = isFinite(my)? my-150 : 1650;
+  }
+  renderLegend(); markDirty();
+}
+function renderLegend(){
+  let box=document.getElementById('legendBox');
+  if(!LG.on){ if(box) box.style.display='none'; return; }
+  if(!box){
+    box=document.createElement('div'); box.id='legendBox';
+    document.getElementById('world').appendChild(box);
+    // 事件全部代理绑定一次；innerHTML 每次 render 重建也不丢
+    box.addEventListener('pointerdown',e=>{
+      e.stopPropagation();                               // 不触发画布框选/平移
+      if(e.target.closest('.lg-close')){ LG.on=false; renderLegend(); markDirty(); return; }
+      const head=e.target.closest('.lg-head');
+      if(head && !readonly){
+        const sx=e.clientX, sy=e.clientY, bx=LG.x, by=LG.y; let moved=false;
+        const mv=ev=>{ const dx=(ev.clientX-sx)/scale, dy=(ev.clientY-sy)/scale;
+          if(!moved && Math.abs(dx)+Math.abs(dy)<2) return; moved=true;
+          LG.x=bx+dx; LG.y=by+dy; box.style.left=LG.x+'px'; box.style.top=LG.y+'px'; };
+        const up=()=>{ document.removeEventListener('pointermove',mv); document.removeEventListener('pointerup',up); if(moved) markDirty(); };
+        document.addEventListener('pointermove',mv); document.addEventListener('pointerup',up);
+      }
+    });
+    box.addEventListener('dblclick',e=>e.stopPropagation());   // 不触发画布双击建框
+    box.addEventListener('focusout',e=>{
+      const el=e.target; if(!el.classList || !el.classList.contains('lg-txt')) return;
+      const k=el.dataset.k; const v=el.innerText.replace(/\n+/g,' ').trim();
+      if((LG.texts[k]||'')!==v){ if(v) LG.texts[k]=v; else delete LG.texts[k]; markDirty(); }
+    });
+    box.addEventListener('keydown',e=>{ e.stopPropagation();
+      if(e.key==='Enter'||e.key==='Escape'){ e.preventDefault(); if(e.target.blur) e.target.blur(); } });
+  }
+  box.style.display='block';
+  box.style.left=(LG.x==null?2800:LG.x)+'px'; box.style.top=(LG.y==null?1650:LG.y)+'px';
+  if(document.activeElement && box.contains(document.activeElement)) return;   // 正在编辑含义 → 不重建
+  const keys=usedMarkerKeys();
+  const rows = keys.length
+    ? keys.map(k=>`<div class="lg-row"><span class="lg-chip">${markerChip(k)}</span><span class="lg-txt" data-k="${escH(k)}" ${readonly?'':'contenteditable="true"'}>${escH(LG.texts[k]||'')}</span></div>`).join('')
+    : `<div class="lg-empty">${t('图中还没有标记')}</div>`;
+  box.innerHTML=`<div class="lg-head"><span>${t('图例')}</span><span class="lg-close" title="${t('隐藏图例')}">✕</span></div>`+rows;
+}
+
 //================ 大纲视图（导图 ↔ 大纲 实时双向同步） ================
 const outlineEl=document.getElementById('outline');
 const outlineBody=document.getElementById('outlineBody');
 let outlineOpen=false, olEditing=null, olFocusId=null;
+const olCollapsed=new Set();   // 大纲里折叠起来的节点（视图状态，不存盘）
 function toggleOutline(force){
   outlineOpen = (force===undefined) ? !outlineOpen : !!force;
   outlineEl.classList.toggle('open', outlineOpen);
@@ -2430,11 +2921,20 @@ function renderOutline(){
   const walk=(id,depth)=>{
     const t=TB[id]; if(!t||t._ghost) return;
     const sel=selSet.has(id), done=t.todo&&t.done;
-    let mk=''; (t.markers||[]).forEach(k=>{ const d=MARKER_DEFS[k]; if(d&&d.g==='emoji') mk+='<span class="ol-mk">'+d.e+'</span>'; });
+    const b=t.brace?BR[t.brace]:null;
+    const kids=b?b.children.filter(c=>TB[c]&&!TB[c]._ghost):[];
+    const coll=olCollapsed.has(id);
+    let mk=''; (t.markers||[]).forEach(k=>{ const ch=markerChip(k); if(ch) mk+='<span class="ol-mkc">'+ch+'</span>'; });
+    if(t.img) mk+='<span class="ol-mk">🖼</span>';
+    if(t.task){ mk+='<span class="ol-mk">📋</span>'; if(typeof t.task.prog==='number') mk+=`<span class="ol-prog">${t.task.prog}%</span>`; }
     if(t.note) mk+='<span class="ol-mk">📝</span>'; if(t.link) mk+='<span class="ol-mk">🔗</span>';
-    html+=`<div class="ol-row ${sel?'sel':''} ${done?'done':''}" data-id="${id}" style="padding-left:${8+depth*18}px">`+
-          `<span class="ol-bullet"></span><span class="ol-text" data-id="${id}" ${readonly?'':'contenteditable="true"'}>${escH(t.text)}</span>${mk}</div>`;
-    const b=t.brace?BR[t.brace]:null; if(b) b.children.forEach(c=>walk(c,depth+1));
+    (t.tags||[]).forEach(s=>{ mk+=`<span class="ol-tag">${escH(s)}</span>`; });
+    const num=t._num?`<span class="ol-num">${escH(t._num)}</span>`:'';
+    const chk=t.todo?`<span class="ol-check ${t.done?'done':''}" data-check="${id}" title="代办：点击打勾/取消"></span>`:'';
+    html+=`<div class="ol-row ${sel?'sel':''} ${done?'done':''}" data-id="${id}" style="padding-left:${8+depth*16}px">`+
+          `<span class="ol-tw ${kids.length?'':'none'}" data-tw="${id}" title="${coll?'展开':'折叠'}">${coll?'▸':'▾'}</span>`+
+          `<span class="ol-bullet"></span>${chk}${num}<span class="ol-text" data-id="${id}" ${readonly?'':'contenteditable="true"'}>${escH(t.text)}</span>${mk}</div>`;
+    if(kids.length && !coll) kids.forEach(c=>walk(c,depth+1));
   };
   roots.forEach(r=>walk(r,0));
   outlineBody.innerHTML=html;
@@ -2447,7 +2947,53 @@ function renderOutline(){
 function bindOutlineRows(){
   outlineBody.querySelectorAll('.ol-row').forEach(row=>{
     const id=row.dataset.id, txt=row.querySelector('.ol-text');
-    row.addEventListener('mousedown',e=>{ if(e.target===txt) return; selectTb(id); ensureVisible(id); });
+    // 折叠三角：点击收起/展开该分支（视图状态，不存盘）
+    const tw=row.querySelector('.ol-tw');
+    if(tw && !tw.classList.contains('none')){
+      tw.addEventListener('pointerdown',e=>e.stopPropagation());
+      tw.addEventListener('click',e=>{ e.stopPropagation();
+        if(olCollapsed.has(id)) olCollapsed.delete(id); else olCollapsed.add(id);
+        renderOutline(); });
+    }
+    // 代办勾选框：点击打勾/取消（与画布同步）
+    const chk=row.querySelector('.ol-check');
+    if(chk){ chk.addEventListener('pointerdown',e=>e.stopPropagation());
+      chk.addEventListener('click',e=>{ e.stopPropagation(); toggleTodoDone(id); }); }
+    // 行空白处：单击选中；按住拖动 = 大纲排序（上/下 1/3 插到前/后，中间 1/3 变子项）
+    row.addEventListener('pointerdown',e=>{
+      if(e.button!==0) return;
+      if(e.target.closest('.ol-text')||e.target.closest('.ol-tw')||e.target.closest('.ol-check')) return;
+      selectTb(id); ensureVisible(id);
+      if(readonly) return;
+      const sx=e.clientX, sy=e.clientY; let drag=false, target=null, zone=null;
+      const getLine=()=>{ let l=document.getElementById('olDropLine');
+        if(!l){ l=document.createElement('div'); l.id='olDropLine'; outlineBody.appendChild(l); } return l; };
+      const clearHints=()=>{ const l=document.getElementById('olDropLine'); if(l) l.style.display='none';
+        outlineBody.querySelectorAll('.ol-row.drop-into').forEach(r=>r.classList.remove('drop-into')); };
+      const mv=ev=>{
+        if(!drag){ if(Math.abs(ev.clientX-sx)+Math.abs(ev.clientY-sy)<5) return;
+          drag=true; row.classList.add('oldrag'); document.body.classList.add('ol-dragging'); }
+        target=null; zone=null; clearHints();
+        const el=document.elementFromPoint(ev.clientX,ev.clientY);
+        const r2=el && el.closest('.ol-row'); if(!r2 || r2===row) return;
+        const tid=r2.dataset.id;
+        let p=tid, own=false;                     // 不能拖进自己的子树
+        while(p){ if(p===id){ own=true; break; } const tt=TB[p]; p=(tt&&tt.parentBrace&&BR[tt.parentBrace])?BR[tt.parentBrace].parentTb:null; }
+        if(own) return;
+        const rc=r2.getBoundingClientRect(); const fr=(ev.clientY-rc.top)/Math.max(1,rc.height);
+        target=tid; zone = fr<0.3 ? 'before' : fr>0.7 ? 'after' : 'into';
+        if(zone==='into'){ r2.classList.add('drop-into'); }
+        else{ const bb=outlineBody.getBoundingClientRect(); const l=getLine();
+          l.style.display='block'; l.style.left=(rc.left-bb.left+6)+'px'; l.style.width=Math.max(40,rc.width-12)+'px';
+          l.style.top=(((zone==='before'?rc.top:rc.bottom))-bb.top+outlineBody.scrollTop-1)+'px'; }
+      };
+      const up=()=>{
+        document.removeEventListener('pointermove',mv); document.removeEventListener('pointerup',up);
+        row.classList.remove('oldrag'); document.body.classList.remove('ol-dragging'); clearHints();
+        if(drag && target && zone) olMoveNode(id, target, zone);
+      };
+      document.addEventListener('pointermove',mv); document.addEventListener('pointerup',up);
+    });
     if(readonly){ txt.addEventListener('click',()=>{ selectTb(id); ensureVisible(id); }); return; }
     txt.addEventListener('focus',()=>{ olEditing=id; if(selPrimary()!==id){ selectTb(id); } ensureVisible(id); });
     txt.addEventListener('input',()=>{
@@ -2461,12 +3007,72 @@ function bindOutlineRows(){
       if(e.key==='Enter' && !e.shiftKey){ e.preventDefault();
         const t=TB[id]; if(t) t.text=txt.innerText.replace(/ /g,' ').trim();
         olEditing=null; const n=createSiblingQuiet(id); if(n){ olFocusId=n; renderOutline(); } return; }
+      if(e.key==='Tab' && e.shiftKey){ e.preventDefault();          // Shift+Tab = 升一级（变成父级的下一个同级）
+        const t=TB[id]; if(t) t.text=txt.innerText.replace(/ /g,' ').trim();
+        olEditing=null; olOutdent(id); return; }
       if(e.key==='Tab'){ e.preventDefault();
         const t=TB[id]; if(t) t.text=txt.innerText.replace(/ /g,' ').trim();
-        olEditing=null; const n=createChildQuiet(id); if(n){ olFocusId=n; renderOutline(); } return; }
+        olEditing=null; olCollapsed.delete(id); const n=createChildQuiet(id); if(n){ olFocusId=n; renderOutline(); } return; }
+      if(e.key==='ArrowUp' || e.key==='ArrowDown'){ e.preventDefault();   // 上下键在大纲行间移动
+        const rows=[...outlineBody.querySelectorAll('.ol-text')];
+        const i=rows.indexOf(txt); const nx=rows[i+(e.key==='ArrowUp'?-1:1)];
+        if(nx){ nx.focus(); olCaretEnd(nx); } return; }
+      if(e.key==='Backspace'){                                            // 空行退格 = 删除该主题、焦点回上一行
+        const cur=txt.innerText.replace(/ /g,' ').trim();
+        const t=TB[id]; const hasKids=t&&t.brace&&BR[t.brace]&&BR[t.brace].children.some(c=>TB[c]&&!TB[c]._ghost);
+        if(cur==='' && !hasKids){ e.preventDefault();
+          const rows=[...outlineBody.querySelectorAll('.ol-text')];
+          const i=rows.indexOf(txt); const prev=rows[i-1];
+          olEditing=null;
+          const pid=prev?prev.dataset.id:null;
+          if(!readonly && t && !isEditLocked(id)){ selSet.delete(id); deleteTb(id); update(); markDirty(); }
+          if(pid && TB[pid]){ olFocusId=pid; renderOutline(); }
+          return; } }
       if(e.key==='Escape'){ e.preventDefault(); olEditing=null; txt.blur(); }
     });
   });
+}
+// 把光标放到 contenteditable 结尾
+function olCaretEnd(el){
+  const r=document.createRange(); r.selectNodeContents(el); r.collapse(false);
+  const s=getSelection(); s.removeAllRanges(); s.addRange(r);
+}
+// 大纲拖拽 / Shift+Tab 共用的移动：把 id 移到 target 的 前面/后面/子级
+function olMoveNode(id, targetId, zone){
+  if(readonly || id===targetId) return;
+  const t=TB[id], tt=TB[targetId]; if(!t||!tt) return;
+  let p=targetId;                                    // 再保险：目标不能在自己子树里
+  while(p){ if(p===id) return; const x=TB[p]; p=(x&&x.parentBrace&&BR[x.parentBrace])?BR[x.parentBrace].parentTb:null; }
+  if(t.parentBrace && BR[t.parentBrace] && BR[t.parentBrace].locked){ flashLocked(id); return; }
+  if(zone==='into' && isEditLocked(targetId)){ flashLocked(targetId); return; }
+  if(zone!=='into' && tt.parentBrace && BR[tt.parentBrace] && BR[tt.parentBrace].locked){ flashLocked(targetId); return; }
+  // 1) 从原位置摘下来
+  if(t.parentBrace && BR[t.parentBrace]){
+    const b=BR[t.parentBrace]; const k=b.children.indexOf(id); if(k>=0) b.children.splice(k,1);
+    const bid=t.parentBrace; t.parentBrace=null;
+    if(!b.children.length && !optKeepEmptyBrace){ if(TB[b.parentTb]) TB[b.parentTb].brace=null; delete BR[bid]; }
+  } else { const k=roots.indexOf(id); if(k>=0) roots.splice(k,1); }
+  // 2) 插到新位置
+  if(zone==='into'){
+    const bId=ensureBrace(targetId); t.parentBrace=bId; BR[bId].children.push(id);
+    olCollapsed.delete(targetId);                    // 展开目标，让用户看到结果
+  } else if(tt.parentBrace && BR[tt.parentBrace]){
+    const b=BR[tt.parentBrace]; let i=b.children.indexOf(targetId); if(i<0) i=b.children.length;
+    if(zone==='after') i++;
+    t.parentBrace=tt.parentBrace; b.children.splice(i,0,id);
+  } else {                                           // 目标是自由根节点 → 也变成根，排在它上/下
+    let i=roots.indexOf(targetId); if(i<0) i=roots.length;
+    if(zone==='after') i++;
+    t.x=tt.x; t.y=(tt.y||tt._cy||0)+(zone==='after'?(tt._h||40)+36:-((t._h||40)+36));
+    roots.splice(i,0,id);
+  }
+  selSet=new Set([id]); update(); ensureVisible(id); markDirty();
+}
+// Shift+Tab：升一级 = 变成父级的下一个同级
+function olOutdent(id){
+  const t=TB[id]; if(!t||!t.parentBrace||!BR[t.parentBrace]) return;
+  const p=BR[t.parentBrace].parentTb; if(!TB[p]) return;
+  olFocusId=id; olMoveNode(id, p, 'after');
 }
 // 大纲里加节点：不在画布上唤起编辑（编辑焦点留在大纲），返回新 id
 function createChildQuiet(tbId){
@@ -2536,73 +3142,212 @@ function refreshFileLabel(){
   document.title=(dirty?'• ':'')+curName+' — ThoughtCanvas';
 }
 
-// 把当前模型序列化为干净 JSON（剔除布局缓存字段）
-function serialize(){
+// ---- 多画布核心：sheetData()=活动画布导出为干净数据；hydrate()=数据灌回全局 ----
+function captureViewFull(){ return {scale,panX,panY,compactMode,numbering,spiderTidyOn,spiderTidyMode,spiderSpacing,timelineSpacing,structGap:Object.assign({},structGap)}; }
+function sheetData(forHistory){   // forHistory=true → 去掉缩放/平移，避免平移进撤销栈
   const tb={};
   for(const id in TB){const t=TB[id];
-    tb[id]={id:t.id,text:t.text,locked:t.locked,parentBrace:t.parentBrace,brace:t.brace,x:t.x,y:t.y,bg:t.bg,anchors:t.anchors,autoAnchors:t.autoAnchors,todo:t.todo,done:t.done,markers:t.markers,tags:t.tags,note:t.note,link:t.link,struct:t.struct,_seg:t._seg,_ghost:t._ghost,_offX:t._offX,_offY:t._offY};}
+    tb[id]={id:t.id,text:t.text,locked:t.locked,parentBrace:t.parentBrace,brace:t.brace,x:t.x,y:t.y,bg:t.bg,anchors:t.anchors,autoAnchors:t.autoAnchors,todo:t.todo,done:t.done,markers:t.markers,tags:t.tags,note:t.note,link:t.link,img:t.img,task:t.task,struct:t.struct,_seg:t._seg,_ghost:t._ghost,_offX:t._offX,_offY:t._offY};}
   const br={};
-  for(const id in BR){const b=BR[id];
-    br[id]={id:b.id,locked:b.locked,parentTb:b.parentTb,children:b.children.slice()};}
+  for(const id in BR){const b=BR[id]; br[id]={id:b.id,locked:b.locked,parentTb:b.parentTb,children:b.children.slice()};}
   const rb={};
   for(const id in RB){const r=RB[id]; rb[id]={id:r.id,sources:r.sources.slice(),target:r.target};}
   const fg={};
   for(const id in FG){const g=FG[id]; fg[id]={id:g.id,members:g.members.slice()};}
   const lk={};
   for(const id in LK){const l=LK[id]; lk[id]={id:l.id,a:l.a,aAng:l.aAng,b:l.b,bAng:l.bAng,locked:l.locked,mode:l.mode,nodes:l.nodes,text:l.text,tx:l.tx,ty:l.ty,dist:l.dist};}
-  return JSON.stringify({app:'brace-mindmap',version:1,docType,name:curName,idc,roots:roots.slice(),
-    textboxes:tb,braces:br,rbraces:rb,fgroups:fg,links:lk, ...dumpExtras(),
-    view:{scale,panX,panY,compactMode,numbering,spiderTidyOn,spiderTidyMode,spiderSpacing,timelineSpacing,structGap:Object.assign({},structGap)}}, null, 1);
+  const view = forHistory
+    ? {compactMode,numbering,spiderTidyOn,spiderTidyMode,spiderSpacing,timelineSpacing,structGap:Object.assign({},structGap)}
+    : captureViewFull();
+  return {name:curSheetName, docType, idc, focusId, roots:roots.slice(),
+    textboxes:tb, braces:br, rbraces:rb, fgroups:fg, links:lk, ...dumpExtras(),
+    customMarkers:customMarkers.slice(), legend:legendDump(), view};
 }
+// 把一个数据对象灌回全局（不动缩放/平移；居中/恢复视图由调用方决定）
+function hydrate(d){
+  nodesL.innerHTML=''; svg.innerHTML=''; for(const k in els) delete els[k];
+  TB=d.textboxes||{}; BR=d.braces||{}; RB=d.rbraces||{}; FG=d.fgroups||{}; LK=d.links||{}; roots=(d.roots||[]).filter(id=>TB[id]);
+  loadExtras(d);
+  customMarkers=Array.isArray(d.customMarkers)?d.customMarkers.slice():[]; loadLegend(d);
+  idc=d.idc||0; selSet.clear(); selLink=null; selOverlay=null; editing=null; olEditing=null; olFocusId=null;
+  focusId=(d.focusId && (d.textboxes||{})[d.focusId])?d.focusId:null;
+  curSheetName=(d.name && (''+d.name).trim()) || '画布 1';
+  docType = d.docType||'brace';
+  const v=d.view||{};
+  compactMode = (v.compactMode===3?0:(v.compactMode || (v.compact?1:0)))||0;
+  numbering = (typeof v.numbering==='string') ? v.numbering : numbering;   // 未指定则沿用当前
+  spiderTidyOn=!!v.spiderTidyOn; if(v.spiderSpacing) spiderSpacing=v.spiderSpacing; if(v.timelineSpacing) timelineSpacing=v.timelineSpacing;
+  structGap = (v.structGap && typeof v.structGap==='object') ? v.structGap : {};
+  spiderTidyMode = v.spiderTidyMode || (spiderTidyOn?'radial':'');
+  applyDocType(); updateTidyBtn(); recomputeFocus(); update();
+}
+function newSheetData(dtype, initStruct, name){
+  const d={name:name||('画布 '+(sheets.length+1)), docType:dtype||'brace', idc:0, focusId:null, roots:[],
+    textboxes:{}, braces:{}, rbraces:{}, fgroups:{}, links:{}, boundaries:{}, summaries:{}, callouts:{}, relations:{},
+    customMarkers:[], legend:{on:false,x:null,y:null,texts:{}}, view:{numbering}};
+  if(initStruct && d.docType!=='spider'){
+    const rid='t1'; d.idc=1;
+    d.textboxes[rid]={id:rid,text:'中心主题',locked:false,parentBrace:null,brace:null,x:3000,y:1800};
+    if(initStruct!=='brace') d.textboxes[rid].struct=initStruct;
+    d.roots=[rid];
+  }
+  return d;
+}
+function syncActiveSheet(){ if(sheets[curSheet]) sheets[curSheet]=sheetData(false); }
+function restoreSheetView(d){ const v=d.view||{};
+  if(typeof v.scale==='number'){ scale=v.scale; panX=v.panX||0; panY=v.panY||0; applyTransform(); }
+  else { scale=1; centerContent(); } }
 
+// 把当前模型序列化为干净 JSON（多画布 version:2；单画布向后兼容）
+function serialize(){
+  syncActiveSheet();
+  return JSON.stringify({app:'brace-mindmap', version:2, name:curName, curSheet, sheets}, null, 1);
+}
 function loadData(text, fallbackName){
   let d; try{ d=JSON.parse(text); }catch(e){ alert('文件格式无法识别'); return false; }
   if(!d || d.app!=='brace-mindmap'){ alert('这不是有效的思维导图文件'); return false; }
-  // 清空当前
-  nodesL.innerHTML=''; svg.innerHTML=''; for(const k in els) delete els[k];
-  TB=d.textboxes||{}; BR=d.braces||{}; RB=d.rbraces||{}; FG=d.fgroups||{}; LK=d.links||{}; roots=(d.roots||[]).filter(id=>TB[id]);
-  loadExtras(d); selOverlay=null; focusId=null;
-  idc=d.idc||0; selSet.clear(); selLink=null; editing=null; olEditing=null; olFocusId=null;
-  docType = d.docType||'brace';
-  curName = (d.name && d.name.trim()) || fallbackName || '未命名思维导图';
-  // 恢复布局模式（须在 update 前）；兼容旧文件的 compact 布尔
-  compactMode = d.view ? (d.view.compactMode===3?0:(d.view.compactMode || (d.view.compact?1:0))) : 0;
-  numbering = (d.view && typeof d.view.numbering==='string') ? d.view.numbering : '';
-  if(d.view){ spiderTidyOn=!!d.view.spiderTidyOn; if(d.view.spiderSpacing) spiderSpacing=d.view.spiderSpacing;
-    if(d.view.timelineSpacing) timelineSpacing=d.view.timelineSpacing;
-    structGap = (d.view.structGap && typeof d.view.structGap==='object') ? d.view.structGap : {};
-    spiderTidyMode = d.view.spiderTidyMode || (spiderTidyOn?'radial':''); }   // 兼容旧文件
-  applyDocType(); updateTidyBtn();
-  update();
-  // 保留保存时的缩放比例，但按内容居中（避免不同窗口大小下的偏移）
-  scale = (d.view && d.view.scale) ? d.view.scale : 1;
+  if(Array.isArray(d.sheets) && d.sheets.length){ sheets=d.sheets; curSheet=Math.min(d.curSheet||0, sheets.length-1); }
+  else { sheets=[d]; curSheet=0; }                        // 旧格式：整个 d 就是一张画布
+  curName = (d.name && (''+d.name).trim()) || fallbackName || '未命名思维导图';
+  olCollapsed.clear();
+  hydrate(sheets[curSheet]);
+  scale = (sheets[curSheet].view && sheets[curSheet].view.scale) ? sheets[curSheet].view.scale : 1;
   centerContent();
-  initHistory();
+  renderSheetTabs(); initHistory();
   return true;
 }
+// ---- 多画布：新增 / 切换 / 删除 / 改名 ----
+function switchSheet(i){
+  if(i===curSheet || i<0 || i>=sheets.length) return;
+  if(editing && els[editing]) els[editing]._inner.blur();
+  syncActiveSheet(); olCollapsed.clear();
+  curSheet=i; hydrate(sheets[i]); restoreSheetView(sheets[i]);
+  renderSheetTabs(); initHistory(); refreshFileLabel();
+}
+function addSheet(dtype, initStruct){
+  if(readonly) return;
+  cancelAddAnchor(); cancelAddLinkNode();
+  syncActiveSheet(); olCollapsed.clear();
+  const d=newSheetData(dtype||'brace', initStruct); sheets.push(d); curSheet=sheets.length-1;
+  hydrate(d); scale=1;
+  const rid=d.roots[0]; if(rid){ selectTb(rid); centerContent(); } else centerWorld(3000,1800);
+  renderSheetTabs(); initHistory(); markDirty();
+}
+function deleteSheet(i){
+  if(readonly || sheets.length<=1 || !sheets[i]) return;
+  if(!confirm(t('删除这张画布？（本操作不可撤销）'))) return;
+  const wasActive=(i===curSheet);
+  sheets.splice(i,1);
+  if(curSheet>i) curSheet--; else if(curSheet===i) curSheet=Math.min(i, sheets.length-1);
+  if(wasActive){ olCollapsed.clear(); hydrate(sheets[curSheet]); restoreSheetView(sheets[curSheet]); initHistory(); }
+  renderSheetTabs(); markDirty();
+}
+function renameSheet(i, name){
+  if(readonly || !sheets[i]) return; const nm=(name||'').trim(); if(!nm){ renderSheetTabs(); return; }
+  sheets[i].name=nm; if(i===curSheet) curSheetName=nm; renderSheetTabs(); markDirty();
+}
+function sheetLabel(s,i){ return (s && s.name && (''+s.name).trim()) || ('画布 '+(i+1)); }
+function renderSheetTabs(){
+  const list=document.getElementById('sheetTabList'); if(!list) return;
+  list.innerHTML=sheets.map((s,i)=>{ const nm=escH(sheetLabel(s,i)); const dt=(s.docType==='spider')?'🕸':'🗂';
+    return `<div class="sheet-tab ${i===curSheet?'active':''}" data-i="${i}" title="${nm}"><span class="st-dt">${dt}</span>`
+      +`<span class="st-name" data-i="${i}">${nm}</span>`
+      +(sheets.length>1?`<span class="st-x" data-x="${i}" title="删除画布">✕</span>`:'')+`</div>`; }).join('');
+  list.querySelectorAll('.sheet-tab').forEach(tab=>{ const i=+tab.dataset.i;
+    tab.addEventListener('pointerdown',e=>{ if(e.target.closest('.st-x')||e.target.closest('[contenteditable]')) return; if(i!==curSheet) switchSheet(i); });
+    tab.addEventListener('dblclick',e=>{ e.stopPropagation(); startRenameSheet(i, tab.querySelector('.st-name')); }); });
+  list.querySelectorAll('.st-x').forEach(x=> x.addEventListener('click',e=>{ e.stopPropagation(); deleteSheet(+x.dataset.x); }));
+}
+function startRenameSheet(i, el){
+  if(readonly||!el) return; let finished=false;
+  el.setAttribute('contenteditable','true'); el.focus();
+  const r=document.createRange(); r.selectNodeContents(el); const s=getSelection(); s.removeAllRanges(); s.addRange(r);
+  const done=commit=>{ if(finished) return; finished=true; el.removeAttribute('contenteditable');
+    if(commit) renameSheet(i, el.textContent); else renderSheetTabs(); };
+  el.addEventListener('keydown',ev=>{ ev.stopPropagation();
+    if(ev.key==='Enter'){ ev.preventDefault(); done(true); } else if(ev.key==='Escape'){ ev.preventDefault(); done(false); } });
+  el.addEventListener('blur',()=>done(true), {once:true});
+}
+document.getElementById('sheetAdd').onclick=()=>addSheet(docType);
 
-//================ 撤销 / 重做 ================
-function modelStr(){
-  const tb={}; for(const id in TB){const t=TB[id];
-    tb[id]={id:t.id,text:t.text,locked:t.locked,parentBrace:t.parentBrace,brace:t.brace,x:t.x,y:t.y,bg:t.bg,anchors:t.anchors,autoAnchors:t.autoAnchors,todo:t.todo,done:t.done,markers:t.markers,tags:t.tags,note:t.note,link:t.link,struct:t.struct,_seg:t._seg,_ghost:t._ghost,_offX:t._offX,_offY:t._offY};}
-  const br={}; for(const id in BR){const b=BR[id];
-    br[id]={id:b.id,locked:b.locked,parentTb:b.parentTb,children:b.children.slice()};}
-  const rb={}; for(const id in RB){const r=RB[id]; rb[id]={id:r.id,sources:r.sources.slice(),target:r.target};}
-  const fg={}; for(const id in FG){const g=FG[id]; fg[id]={id:g.id,members:g.members.slice()};}
-  const lk={}; for(const id in LK){const l=LK[id]; lk[id]={id:l.id,a:l.a,aAng:l.aAng,b:l.b,bAng:l.bAng,locked:l.locked,mode:l.mode,nodes:l.nodes,text:l.text,tx:l.tx,ty:l.ty,dist:l.dist};}
-  return JSON.stringify(Object.assign({docType,idc,roots:roots.slice(),textboxes:tb,braces:br,rbraces:rb,fgroups:fg,links:lk,structGap:Object.assign({},structGap)}, dumpExtras()));
+//================ 甘特图（项目管理：任务信息的起止日期 → 进度条时间轴） ================
+let ganttOpen=false;
+function parseISO(s){ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||''); return m?new Date(+m[1],+m[2]-1,+m[3]):null; }
+function collectGanttTasks(){
+  const out=[];
+  const pushIf=(id,depth)=>{ const t=TB[id]; if(!t||t._ghost) return; const k=t.task;
+    if(k && (k.start||k.end)){ let s=parseISO(k.start)||parseISO(k.end), e=parseISO(k.end)||parseISO(k.start);
+      if(s&&e){ if(s>e){ const tmp=s;s=e;e=tmp; } out.push({id,depth,t,s,e,prog:(typeof k.prog==='number')?k.prog:0}); } } };
+  if(docType==='spider'){ for(const id in TB) pushIf(id,0); }
+  else { const walk=(id,depth)=>{ pushIf(id,depth); const t=TB[id],b=t&&t.brace?BR[t.brace]:null; if(b) b.children.forEach(c=>walk(c,depth+1)); };
+    roots.forEach(r=>walk(r,0)); }
+  return out;
 }
-function applyModel(str){
-  const d=JSON.parse(str);
-  editing=null; selLink=null; selOverlay=null;
-  nodesL.innerHTML=''; svg.innerHTML=''; for(const k in els) delete els[k];
-  TB=d.textboxes||{}; BR=d.braces||{}; RB=d.rbraces||{}; FG=d.fgroups||{}; LK=d.links||{}; roots=(d.roots||[]).filter(id=>TB[id]); idc=d.idc||0;
-  structGap = (d.structGap && typeof d.structGap==='object') ? d.structGap : {};
-  loadExtras(d);
-  if(d.docType && d.docType!==docType){ docType=d.docType; applyDocType(); }
-  for(const id of [...selSet]) if(!TB[id]) selSet.delete(id);
-  update();
+function toggleGantt(force){
+  ganttOpen=(force===undefined)?!ganttOpen:!!force;
+  const m=document.getElementById('ganttMask'); m.classList.toggle('open',ganttOpen);
+  if(ganttOpen){ renderGantt(); translateNode(m); }
 }
+function renderGantt(){
+  const body=document.getElementById('ganttBody');
+  const tasks=collectGanttTasks();
+  if(!tasks.length){ body.innerHTML=`<div class="gt-empty">${t('本画布还没有带「开始/截止日期」的任务')}<br>${t('在主题右键「任务信息」里填开始日期和截止日期，就会出现在这里')}</div>`; return; }
+  const DAY=86400000;
+  let min=tasks[0].s, max=tasks[0].e;
+  tasks.forEach(x=>{ if(x.s<min)min=x.s; if(x.e>max)max=x.e; });
+  min=new Date(+min-DAY); max=new Date(+max+DAY);
+  const totalDays=Math.max(1,Math.round((max-min)/DAY))+1;
+  const pxPerDay=Math.max(9, Math.min(38, Math.round(820/totalDays)));
+  const chartW=totalDays*pxPerDay;
+  const dayIdx=d=>Math.round((d-min)/DAY);
+  const fmt=d=>`${d.getMonth()+1}/${d.getDate()}`;
+  let ticks='', vlines='';
+  for(let i=0;i<=totalDays;i+=7){ const d=new Date(+min+i*DAY), x=i*pxPerDay;
+    ticks+=`<div class="gt-tick" style="left:${x}px">${fmt(d)}</div>`;
+    vlines+=`<div class="gt-vline" style="left:${x}px"></div>`; }
+  let rows='';
+  tasks.forEach(x=>{ const x0=dayIdx(x.s)*pxPerDay, w=Math.max(pxPerDay,(dayIdx(x.e)-dayIdx(x.s)+1)*pxPerDay);
+    const lbl=escH(x.t.text||'(空白主题)')+(x.t.task.who?` · 👤${escH(x.t.task.who)}`:'');
+    rows+=`<div class="gt-row" data-id="${x.id}"><div class="gt-label" style="padding-left:${8+x.depth*13}px" title="${escH(x.t.text)}">${lbl}</div>`
+      +`<div class="gt-track" style="width:${chartW}px">${vlines}`
+      +`<div class="gt-bar" style="left:${x0}px;width:${w}px" title="${fmt(x.s)} → ${fmt(x.e)} · ${x.prog}%"><i style="width:${x.prog}%"></i></div>`
+      +`<span class="gt-prog" style="left:${x0+w+5}px">${x.prog}%</span></div></div>`;
+  });
+  body.innerHTML=`<div class="gt-grid" style="min-width:${220+chartW}px">`
+    +`<div class="gt-axis"><div class="gt-label-h"></div><div class="gt-track" style="width:${chartW}px">${ticks}</div></div>`
+    +rows+`</div>`;
+  body.querySelectorAll('.gt-row').forEach(r=>r.addEventListener('click',()=>{ const id=r.dataset.id;
+    if(TB[id]){ toggleGantt(false); selectTb(id); ensureVisible(id); } }));
+}
+document.getElementById('ganttClose').onclick=()=>toggleGantt(false);
+document.getElementById('ganttMask').addEventListener('pointerdown',e=>{ if(e.target.id==='ganttMask') toggleGantt(false); });
+// 从主题下钻：把该主题及其子树复制到一张新画布（原图不动）
+function drillDownToNewSheet(id){
+  if(readonly||!TB[id]) return;
+  const sub=subtreeSet(id);                                   // 该主题 + 所有后代
+  const map={}; let n=0; const remap=x=> map[x] || (map[x]='t'+(++n));   // 重编号避免与新画布冲突
+  const bmap={}; let bn=0; const remapB=x=> bmap[x] || (bmap[x]='b'+(++bn));
+  const tb={}, br={};
+  sub.forEach(x=>{ const o=TB[x]; const nx=remap(x);
+    const c=JSON.parse(JSON.stringify({id:nx,text:o.text,locked:o.locked,x:o.x,y:o.y,bg:o.bg,todo:o.todo,done:o.done,markers:o.markers,tags:o.tags,note:o.note,link:o.link,img:o.img,task:o.task,struct:o.struct,_seg:o._seg,_offX:o._offX,_offY:o._offY}));
+    c.parentBrace=(o.parentBrace&&sub.has(BR[o.parentBrace]&&BR[o.parentBrace].parentTb))?remapB(o.parentBrace):null;
+    c.brace=o.brace?remapB(o.brace):null;
+    tb[nx]=c; });
+  sub.forEach(x=>{ const o=TB[x]; if(o.brace && BR[o.brace]){ const b=BR[o.brace];
+    br[remapB(o.brace)]={id:remapB(o.brace),locked:b.locked,parentTb:remap(x),children:b.children.filter(c=>sub.has(c)).map(remap)}; } });
+  const rootNew=remap(id); if(tb[rootNew]){ tb[rootNew].parentBrace=null; }
+  const d={name:'画布 '+(sheets.length+1), docType:'brace', idc:Math.max(n,bn)+1, focusId:null, roots:[rootNew],
+    textboxes:tb, braces:br, rbraces:{}, fgroups:{}, links:{}, boundaries:{}, summaries:{}, callouts:{}, relations:{},
+    customMarkers:customMarkers.slice(), legend:{on:false,x:null,y:null,texts:{}}, view:{numbering}};
+  cancelAddAnchor(); cancelAddLinkNode(); syncActiveSheet(); olCollapsed.clear();
+  sheets.push(d); curSheet=sheets.length-1; hydrate(d); scale=1;
+  if(TB[rootNew]) selectTb(rootNew); centerContent();
+  renderSheetTabs(); initHistory(); markDirty();
+}
+
+//================ 撤销 / 重做（针对当前活动画布） ================
+function modelStr(){ return JSON.stringify(sheetData(true)); }
+function applyModel(str){ hydrate(JSON.parse(str)); }
 function pushHistory(){
   const snap=modelStr();
   if(hidx>=0 && history[hidx]===snap) return;
@@ -2652,22 +3397,14 @@ async function doOpen(){
 }
 async function doNew(type, initStruct){
   if(!(await guardUnsaved())) return;
-  TB={};BR={};RB={};FG={};LK={};BD={};SM={};CO={};RL={};roots=[];selSet.clear();selLink=null;selOverlay=null;focusId=null;editing=null;olEditing=null;olFocusId=null;idc=0;
-  nodesL.innerHTML='';svg.innerHTML='';for(const k in els)delete els[k];
-  cancelAddAnchor(); cancelAddLinkNode(); compactMode=0; spiderTidyOn=false; spiderTidyMode=''; structGap={};
-  docType = type || 'brace';
-  curPath=null; curName=(docType==='spider'?'未命名蜘蛛网':'未命名思维导图'); dirty=false;
-  applyDocType();
-  // 指定初始结构时，建一个中心主题承载该结构（非“模板”，只是用哪种方式起步）
-  let rootId=null;
-  if(initStruct && docType!=='spider'){
-    rootId=newTextbox('中心主题'); const rt=TB[rootId]; rt.x=3000; rt.y=1800;  // 放世界中心
-    if(initStruct!=='brace') rt.struct=initStruct;
-    roots.push(rootId);
-  }
-  scale=1; update();
+  cancelAddAnchor(); cancelAddLinkNode(); closeTaskPanel(false); olCollapsed.clear();
+  const dtype=type||'brace';
+  sheets=[newSheetData(dtype, initStruct, dtype==='spider'?'画布 1':'画布 1')]; curSheet=0;
+  curPath=null; curName=(dtype==='spider'?'未命名蜘蛛网':'未命名思维导图'); dirty=false;
+  hydrate(sheets[0]); scale=1;
+  const rootId=sheets[0].roots[0];
   if(rootId){ selectTb(rootId); centerContent(); } else { centerWorld(3000,1800); }
-  refreshFileLabel(); initHistory();
+  renderSheetTabs(); refreshFileLabel(); initHistory();
 }
 
 // 有未保存更改时的拦截，返回 true 表示可继续
@@ -2804,7 +3541,6 @@ function openSettings(){
   document.getElementById('optAutoAnchor').checked=optAutoAnchor;
   document.getElementById('optNoShareAnchor').checked=optNoShareAnchor;
   document.getElementById('numberingSel').value=numbering;
-  document.getElementById('segModeSel').value=segMode;
   document.getElementById('langSel').value=LANG;
   renderSchemes();
   document.querySelectorAll('#settingsBox .set-navitem').forEach(n=>n.classList.toggle('active', n.dataset.pane==='paneGeneral'));
@@ -2823,11 +3559,6 @@ document.getElementById('numberingSel').addEventListener('change', e=>{
   numbering=e.target.value;
   localStorage.setItem('bmap.numbering', numbering);
   render(); layout(); markDirty();
-});
-document.getElementById('segModeSel').addEventListener('change', e=>{
-  segMode=e.target.value;
-  localStorage.setItem('bmap.segMode', segMode);
-  layout();   // 切到/离开“连线手柄”需重画手柄
 });
 document.getElementById('langSel').addEventListener('change', e=>{
   LANG=e.target.value; localStorage.setItem('bmap.lang', LANG);
@@ -2939,7 +3670,19 @@ function importThemeFile(file){ if(!file){ return; } const rd=new FileReader();
 })();
 // 防止把文件拖到窗口其它位置时 Electron 直接打开该文件
 window.addEventListener('dragover',e=>e.preventDefault());
-window.addEventListener('drop',e=>e.preventDefault());
+// 把 .bmap 文件拖进窗口即可打开（.bmapui/.bmaptheme 交给设置里的导入区处理，不在这里抢）
+window.addEventListener('drop', async e=>{
+  e.preventDefault();
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if(!f) return;
+  const nm = f.name.toLowerCase();
+  if(nm.endsWith('.bmapui') || nm.endsWith('.bmaptheme')) return;
+  if(!nm.endsWith('.bmap')) return;
+  if(!(await guardUnsaved())) return;
+  const rd=new FileReader();
+  rd.onload=()=>{ if(loadData(rd.result, f.name.replace(/\.bmap$/i,''))){ curPath=(window.api && f.path)?f.path:null; dirty=false; refreshFileLabel(); hideStart(); } };
+  rd.readAsText(f);
+});
 applyScheme(curScheme);
 
 //================ UI 设置：整套界面皮肤（运行时切换 + 画廊 + 导入） ================
@@ -2960,7 +3703,9 @@ const BUILTIN_UI=[
 ];
 const UI_QUICK_IDS=['default','skeleton','tailwind','win98','xp']; // 主面板里直接列出的几个
 function getUserUI(){ try{ return JSON.parse(localStorage.getItem('bmap.userSkins')||'{}'); }catch(e){ return {}; } }
-function setUserUI(o){ try{ localStorage.setItem('bmap.userSkins',JSON.stringify(o)); }catch(e){} }
+function setUserUI(o){ try{ localStorage.setItem('bmap.userSkins',JSON.stringify(o)); }catch(e){} persistSkinsFile(); }
+// 桌面版：把自定义皮肤 + 当前皮肤 id 落到 userData 的文件里，重启不丢（localStorage 万一被清也能恢复）
+function persistSkinsFile(){ if(window.api && window.api.saveSkins){ try{ window.api.saveSkins(JSON.stringify({current:curUISkin, skins:getUserUI()})); }catch(e){} } }
 function allUISkins(){
   const u=getUserUI();
   const us=Object.keys(u).map(id=>Object.assign({id,group:'自定义',user:true}, u[id]));
@@ -2993,6 +3738,7 @@ function applyUISkin(id){
   });
   document.documentElement.setAttribute('data-uiskin',s.id);
   localStorage.setItem('bmap.uiskin',s.id);
+  persistSkinsFile();
   renderUIQuick(); markUIState();
 }
 function markUIState(){
@@ -3080,7 +3826,21 @@ function renderGallery(){
   if(mask) mask.addEventListener('click',e=>{ if(e.target===mask) close(); });
   document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&mask.classList.contains('show')){ e.stopPropagation(); close(); } },true);
 })();
-applyUISkin(curUISkin);
+applyUISkin(curUISkin);          // 先按 localStorage 立即应用（无闪烁）
+// 桌面版：若 localStorage 被清（重启丢皮肤），从 userData 的文件里恢复自定义皮肤 + 当前皮肤
+(async function restoreSkinsFromFile(){
+  try{
+    if(!(window.api && window.api.loadSkins)) return;
+    const txt=await window.api.loadSkins(); if(!txt) return;
+    const f=JSON.parse(txt); if(!f) return; let need=false;
+    if(f.skins && typeof f.skins==='object'){ const cur=getUserUI();
+      for(const id in f.skins){ if(!cur[id]){ cur[id]=f.skins[id]; need=true; } }
+      if(need){ try{ localStorage.setItem('bmap.userSkins', JSON.stringify(cur)); }catch(e){} } }
+    const lsCur=localStorage.getItem('bmap.uiskin');
+    if((!lsCur || lsCur==='default') && f.current && f.current!=='default'){ curUISkin=f.current; try{ localStorage.setItem('bmap.uiskin', f.current); }catch(e){} need=true; }
+    if(need) applyUISkin(curUISkin);   // 有从文件恢复的东西 → 重新应用
+  }catch(e){}
+})();
 
 //================ 双击文件名重命名 ================
 const fnameEl=document.getElementById('fname');
@@ -3196,9 +3956,16 @@ function setReadonly(on){
   }
   const ar=document.getElementById('addRoot'); if(ar) ar.disabled=on;
   updateReadBtn(); updateUndoBtns();
+  layout();   // 重画连线：进/出阅读模式时同步显示/隐藏段长手柄
 }
 document.getElementById('readBtn').onclick=()=>setReadonly(!readonly);
 document.getElementById('outlineClose').onclick=()=>toggleOutline(false);
+document.getElementById('olExpandAll').onclick=()=>{ olCollapsed.clear(); renderOutline(); };
+document.getElementById('olCollapseAll').onclick=()=>{ olCollapsed.clear();
+  for(const id in TB){ const t=TB[id]; if(t._ghost) continue; const b=t.brace?BR[t.brace]:null;
+    if(b && b.children.some(c=>TB[c]&&!TB[c]._ghost)) olCollapsed.add(id); }
+  roots.forEach(r=>olCollapsed.delete(r));   // 保留根展开，至少能看到顶层
+  renderOutline(); };
 document.querySelector('#focusBar .fb-exit').onclick=exitFocus;
 
 //================ 整理（下拉：智能整理 / 智能整理+） ================
@@ -3221,29 +3988,37 @@ function openTidyMenu(){
     const sMin = isTL?120:200, sMax = isTL?500:900;
     const sVal = isTL?Math.round(timelineSpacing*130):Math.round(spiderSpacing*130);
     tidyMenu.innerHTML=`<div class="mi" data-sptidy="1"><span class="chk">${spiderTidyMode==='radial'?'✓':''}</span><span class="mt">智能整理</span><span class="sk">放射状·整洁</span></div>`
+      +`<div class="mi" data-gridtidy="1"><span class="chk">${spiderTidyMode==='grid'?'✓':''}</span><span class="mt">网格整理</span><span class="sk">行列对齐·规整</span></div>`
       +(spiderArrow?`<div class="mi" data-timeline="1"><span class="chk">${spiderTidyMode==='timeline'?'✓':''}</span><span class="mt">时间线</span><span class="sk">按箭头从左到右</span></div>`:'')
       +`<div class="tidy-slider-row"><span class="pm">−</span><input type="range" id="spiderSpace" min="${sMin}" max="${sMax}" step="10" value="${sVal}"><span class="pm">＋</span></div>`
       +`<div class="tidy-hint">拖动调整整理后文本框的间距</div>`;
     tidyMenu.querySelector('[data-sptidy]').onclick=ev=>{ ev.stopPropagation(); closeMenus(); setSpiderTidy(); };
+    tidyMenu.querySelector('[data-gridtidy]').onclick=ev=>{ ev.stopPropagation(); closeMenus(); setGridTidy(); };
     const tl=tidyMenu.querySelector('[data-timeline]'); if(tl) tl.onclick=ev=>{ ev.stopPropagation(); closeMenus(); setTimelineTidy(); };
     const sp=tidyMenu.querySelector('#spiderSpace');
     sp.addEventListener('pointerdown',ev=>ev.stopPropagation());
     sp.addEventListener('input',ev=>{ const v=(+ev.target.value)/130;
       if(isTL){ timelineSpacing=v; if(spiderTidyMode==='timeline'){ timelineArrange(); layout(); } }
-      else { spiderSpacing=v; if(spiderTidyMode==='radial'){ spiderArrange(); layout(); } } });
+      else { spiderSpacing=v; if(spiderTidyMode==='radial'){ spiderArrange(); layout(); } else if(spiderTidyMode==='grid'){ gridArrange(); layout(); } } });
     sp.addEventListener('change',()=>{ if(spiderTidyMode) markDirty(); });
   } else {
     const tgt=(selPrimary()&&TB[selPrimary()])?selPrimary():roots[0];
     const st=tgt?effStruct(tgt):'brace';
     const stLabel=(STRUCTS.find(s=>s.k===st)||{label:'大括号图'}).label;
     const mulPct=Math.round(gapMul(st)*100);
-    tidyMenu.innerHTML=`<div class="mi" data-mode="1"><span class="chk"></span><span class="mt">智能整理</span><span class="sk">纵向压缩</span></div>`
-      +`<div class="mi" data-mode="2"><span class="chk"></span><span class="mt">智能整理+</span><span class="sk">横向错位·更紧凑</span></div>`
+    const isStruct=anyNonBrace();   // 含结构图 → compactMode 对它无效，改成“一键复位到自动排版”
+    // 纯大括号图 → 智能整理/智能整理+（纵向压缩）；结构图 → 复位（清除手动拖动，回到干净自动排版）
+    tidyMenu.innerHTML=(isStruct
+        ? `<div class="mi" data-structreset="1"><span class="chk">↺</span><span class="mt">智能整理</span><span class="sk">复位到自动排版</span></div>`
+        : `<div class="mi" data-mode="1"><span class="chk"></span><span class="mt">智能整理</span><span class="sk">纵向压缩</span></div>`
+          +`<div class="mi" data-mode="2"><span class="chk"></span><span class="mt">智能整理+</span><span class="sk">横向错位·更紧凑</span></div>`)
       +`<div class="msep"></div>`
       +`<div class="tidy-seglabel">${t('连线间距')} · ${t(stLabel)} <b id="segPctOut">${mulPct}%</b></div>`
       +`<div class="tidy-slider-row"><span class="pm">−</span><input type="range" id="structSpace" min="40" max="250" step="5" value="${mulPct}"><span class="pm">＋</span></div>`
       +`<div class="mi" data-segreset="1"><span class="chk">↺</span><span class="mt">${t('重置本结构间距')}</span></div>`;
     updateTidyMenu();
+    const sr=tidyMenu.querySelector('[data-structreset]');
+    if(sr) sr.addEventListener('click',ev=>{ ev.stopPropagation(); closeMenus(); resetStructLayout(); });
     tidyMenu.querySelectorAll('.mi[data-mode]').forEach(mi=>{ mi.addEventListener('click',ev=>{ ev.stopPropagation(); closeMenus(); setTidy(+mi.dataset.mode); }); });
     const ss=tidyMenu.querySelector('#structSpace');
     ss.addEventListener('pointerdown',ev=>ev.stopPropagation());
@@ -3256,6 +4031,14 @@ function openTidyMenu(){
   const r=tidyBtn.getBoundingClientRect();
   tidyMenu.style.top=(r.bottom+5)+'px';
   tidyMenu.style.left=Math.min(r.left, innerWidth-tidyMenu.offsetWidth-8)+'px';
+}
+// 结构图“智能整理”=一键复位：清除所有手动拖动偏移(_offX/_offY)与单节点段长(_seg)，回到干净自动排版
+function resetStructLayout(){
+  if(readonly) return;
+  for(const id in TB){ const t=TB[id]; delete t._offX; delete t._offY; delete t._seg; }
+  compactMode=0; updateTidyBtn();
+  if(editing && els[editing]) els[editing]._inner.blur();
+  layout(); centerContent(); markDirty();
 }
 function setTidy(mode){
   compactMode = (compactMode===mode) ? 0 : mode;   // 再点已选项 → 恢复原布局
@@ -3277,6 +4060,14 @@ function setTimelineTidy(){
   spiderTidyMode = (spiderTidyMode==='timeline') ? '' : 'timeline';
   spiderTidyOn = spiderTidyMode!=='';
   if(spiderTidyMode==='timeline') timelineArrange();
+  updateTidyBtn();
+  if(editing && els[editing]) els[editing]._inner.blur();
+  layout(); centerContent(); markDirty();
+}
+function setGridTidy(){
+  spiderTidyMode = (spiderTidyMode==='grid') ? '' : 'grid';
+  spiderTidyOn = spiderTidyMode!=='';
+  if(spiderTidyMode==='grid') gridArrange();
   updateTidyBtn();
   if(editing && els[editing]) els[editing]._inner.blur();
   layout(); centerContent(); markDirty();
@@ -3336,6 +4127,10 @@ function menuItems(key){
       {label:'备注…', dis:!has, fn:()=>has&&openNote(sel)},
       {label:'标签…', dis:!has, fn:()=>has&&addTags(sel)},
       {label:'链接…', dis:!has, fn:()=>has&&setLink(sel)},
+      {label:'图片…', dis:!has, fn:()=>has&&pickImage(sel)},
+      {label:'任务信息…', dis:!has, fn:()=>has&&openTaskPanel(sel,140,96)},
+      {sep:true},
+      {label:'图例（标记含义）', check:LG.on, fn:()=>toggleLegend()},
     ];
     return [
       {label:'子文本框', dis:!has, fn:()=>has&&addChild(sel)},
@@ -3345,15 +4140,20 @@ function menuItems(key){
       {label:'备注…', dis:!has, fn:()=>has&&openNote(sel)},
       {label:'标签…', dis:!has, fn:()=>has&&addTags(sel)},
       {label:'链接…', dis:!has, fn:()=>has&&setLink(sel)},
+      {label:'图片…', dis:!has, fn:()=>has&&pickImage(sel)},
+      {label:'任务信息…', dis:!has, fn:()=>has&&openTaskPanel(sel,140,96)},
       {label:'添加标注', dis:!has, fn:()=>has&&addCallout(sel)},
       {sep:true},
       {label:'外框（圈住选中）', dis:n<1, fn:()=>addBoundary([...selSet])},
       {label:'概要（归纳选中）', dis:n<1, fn:()=>addSummary([...selSet])},
       {label:'联系（两主题间箭头）', dis:n!==2, fn:()=>{ const a=[...selSet]; addRelation(a[0],a[1]); }},
+      {sep:true},
+      {label:'图例（标记含义）', check:LG.on, fn:()=>toggleLegend()},
     ];
   }
   if(key==='view') return [
     {label:'大纲视图', sk:'Q', check:outlineOpen, fn:()=>toggleOutline()},
+    {label:'甘特图', check:ganttOpen, fn:()=>toggleGantt()},
     {label: focusId?'退出聚焦':'聚焦此分支', dis:!focusId&&!has, fn:()=>{ focusId?exitFocus():(has&&setFocus(sel)); }},
     {sep:true},
     {label:'放大', fn:()=>zoomBy(1.2)},
@@ -3992,6 +4792,19 @@ function timelineArrange(){
     colIds.forEach((id,k)=>{ const t=TB[id]; t.x=colX-t._w/2; t.y=cy0+(k-(colIds.length-1)/2)*rowGap; }); });
   optimizeLinkAnchors();
 }
+// 网格整理（蜘蛛网变形：连接多的排前面，全部铺成居中的规整行列网格）
+function gridArrange(){
+  const ids=Object.keys(TB).filter(id=>!TB[id]._ghost && els[id]); if(!ids.length) return;
+  ids.forEach(measure);
+  const deg={}; ids.forEach(i=>deg[i]=0);
+  for(const lid in LK){ const l=LK[lid]; if(TB[l.a]&&TB[l.b]){ deg[l.a]++; deg[l.b]++; } }
+  const order=ids.slice().sort((a,b)=> (deg[b]-deg[a]) || (a<b?-1:1));   // 连接数多的靠前，稳定排序
+  const n=order.length, cols=Math.max(1,Math.round(Math.sqrt(n))), rows=Math.ceil(n/cols);
+  const colGap=210*spiderSpacing, rowGap=150*spiderSpacing, cx0=3000, cy0=1800;
+  order.forEach((id,k)=>{ const r=Math.floor(k/cols), c=k%cols, t=TB[id];
+    t.x=(cx0+(c-(cols-1)/2)*colGap)-t._w/2; t.y=cy0+(r-(rows-1)/2)*rowGap; });
+  optimizeLinkAnchors();
+}
 
 //================ 导出 PDF / JPG ================
 function contentBBox(){
@@ -4280,6 +5093,7 @@ canvas.addEventListener('pointermove', e=>{
 canvas.addEventListener('pointerdown', e=>{
   closeMenu(); closeMenus();
   if(e.button!==0) return;
+  if(spaceDown){ startCanvasPan(e); return; }   // 空格+左键拖 = 平移
   if(e.target.closest('.node') || e.target.closest('.brace-hit') || e.target.closest('.anchor') || e.target.closest('.link-hit')) return;
   if(readonly){ deselect(); return; }
   const start=toWorld(e.clientX,e.clientY);
@@ -4326,18 +5140,25 @@ canvas.addEventListener('wheel', e=>{
   applyTransform();
 },{passive:false});
 
-// 按住鼠标中键拖动画布
-canvas.addEventListener('pointerdown', e=>{
-  if(e.button!==1) return;
+// 平移画布：鼠标中键，或按住空格用左键拖（笔记本/触控板没有中键也能平移）
+let spaceDown=false;
+function startCanvasPan(e){
   e.preventDefault();
   const sx=e.clientX, sy=e.clientY, p0x=panX, p0y=panY;
   canvas.classList.add('panning');
-  canvas.setPointerCapture(e.pointerId);
   const mv=ev=>{ panX=p0x+(ev.clientX-sx); panY=p0y+(ev.clientY-sy); applyTransform(); };
-  const up=ev=>{ canvas.classList.remove('panning'); canvas.releasePointerCapture(e.pointerId);
-    canvas.removeEventListener('pointermove',mv); canvas.removeEventListener('pointerup',up); };
-  canvas.addEventListener('pointermove',mv); canvas.addEventListener('pointerup',up);
-});
+  const up=()=>{ canvas.classList.remove('panning');
+    window.removeEventListener('pointermove',mv); window.removeEventListener('pointerup',up); };
+  window.addEventListener('pointermove',mv); window.addEventListener('pointerup',up);
+}
+canvas.addEventListener('pointerdown', e=>{ if(e.button===1) startCanvasPan(e); });
+// 空格键按下 = 进入抓手平移模式（编辑文字 / 输入框里不拦截，正常打空格）
+window.addEventListener('keydown', e=>{ if(e.code==='Space' && !e.repeat){
+  const ae=document.activeElement;
+  if(editing || (ae && (ae.isContentEditable || ae.tagName==='INPUT' || ae.tagName==='TEXTAREA'))) return;
+  spaceDown=true; canvas.classList.add('space-pan'); } });
+window.addEventListener('keyup', e=>{ if(e.code==='Space'){ spaceDown=false; canvas.classList.remove('space-pan'); } });
+window.addEventListener('blur', ()=>{ spaceDown=false; canvas.classList.remove('space-pan'); });
 
 //================ 语言 / i18n（中文 ⇄ English） ================
 let LANG = localStorage.getItem('bmap.lang') || 'zh';
@@ -4351,7 +5172,7 @@ const I18N = {
   '大括号图':'Brace','逻辑图':'Logic Chart','组织结构图':'Org Chart','树状图':'Tree',
   '时间轴':'Timeline','鱼骨图':'Fishbone','矩阵':'Matrix','树形表格':'Tree Table',
   '切换此分支结构':'Change this branch’s structure',
-  '连线间距':'Spacing','重置本结构间距':'Reset this structure’s spacing','调整此节点间距':'Adjust this node’s spacing','重置此节点间距':'Reset this node’s spacing','重置':'Reset',
+  '连线间距':'Spacing','重置本结构间距':'Reset this structure’s spacing','调整此节点间距':'Adjust this node’s spacing','重置此节点间距':'Reset this node’s spacing','重置此节点位置':'Reset this node’s position','重置':'Reset',
   '单节点间距调整方式':'Single-node spacing adjustment','Alt + 拖动节点':'Alt + drag node','连线上拖手柄':'Drag handle on connector','右键 → 间距滑条':'Right-click → spacing slider',
   '在各种结构里单独微调某个节点到父级的连线段长。默认按住 Alt 拖动该节点即可；也可改用连线上的小圆点手柄，或右键菜单里的滑条。整图统一间距用顶部「整理」里的滑条。':'Fine-tune a single node’s connector length to its parent, in any structure. By default hold Alt and drag the node; or switch to a dot handle on the connector, or a slider in the right-click menu. For whole-map spacing use the slider in the top “Tidy” menu.',
   '返回开始页':'Back to Start','开始页':'Start','撤销 (Ctrl+Z)':'Undo (Ctrl+Z)','重做 (Ctrl+Y)':'Redo (Ctrl+Y)',
@@ -4384,6 +5205,8 @@ const I18N = {
   '新建':'New','打开':'Open','保存':'Save','另存为':'Save As','导出':'Export','设置':'Settings',
   '导出为 PDF':'Export as PDF','导出为 JPG':'Export as JPG','原 UI 风格':'Original UI style','现 UI 风格':'Current UI style',
   '智能整理':'Smart tidy','智能整理+':'Smart tidy+','纵向压缩':'Vertical compact','横向错位·更紧凑':'Horizontal offset · tighter',
+  '网格整理':'Grid tidy','行列对齐·规整':'Aligned rows & columns','放射状·整洁':'Radial · tidy','按箭头从左到右':'Left-to-right by arrows','时间线':'Timeline',
+  '复位到自动排版':'Reset to auto layout',
   // 设置面板
   '⚙ 通用':'⚙ General','完成':'Done','语言 / Language':'Language','主题编号':'Topic numbering','无':'None',
   '⌨ 快捷键':'⌨ Shortcuts','↺ 全部恢复默认':'↺ Reset all to default',
@@ -4419,7 +5242,27 @@ const I18N = {
   // 叠加层默认标签
   '外框':'Boundary','概要':'Summary','联系':'Relation',
   // 大纲
-  '📋 大纲':'📋 Outline','关闭大纲':'Close outline',
+  '📋 大纲':'📋 Outline','关闭大纲':'Close outline','折叠':'Collapse','展开':'Expand',
+  // 富节点 V0.0.6：图片 / 任务信息 / 自定义标记 / 图例
+  '图片…':'Image…','插入图片…':'Insert image…','更换图片…':'Replace image…','移除图片':'Remove image','插入图片':'Insert image',
+  '无法读取这张图片':'Could not read this image',
+  '任务信息…':'Task info…','编辑任务信息…':'Edit task info…','任务信息':'Task info','📋 任务信息':'📋 Task Info',
+  '负责人':'Assignee','谁来做？':'Who will do it?','进度':'Progress','开始日期':'Start date','截止日期':'Due date',
+  '自定义标记':'Custom markers','添加自定义标记（emoji 或 1-2 个字）':'Add custom marker (emoji or 1-2 chars)',
+  '输入 emoji 或 1-2 个字：':'Enter an emoji or 1-2 characters:','右键点击可从自定义组移除':'Right-click to remove from custom set',
+  '图例（标记含义）':'Legend (marker meanings)','图例':'Legend','显示图例':'Show legend','隐藏图例':'Hide legend',
+  '图中还没有标记':'No markers in this map yet',
+  // 标签 / 链接弹层
+  '🔖 标签':'🔖 Tags','输入标签后回车（逗号可分隔多个）':'Type a tag and press Enter (comma-separated)','🔗 链接':'🔗 Link','打开':'Open','删除':'Delete',
+  // 大纲：展开/折叠全部
+  '展开全部':'Expand all','折叠全部':'Collapse all','完成':'Done',
+  // 多画布 + 甘特
+  '新建画布':'New sheet','删除画布':'Delete sheet','删除这张画布？（本操作不可撤销）':'Delete this sheet? (cannot be undone)',
+  '在新画布中展开此分支':'Open this branch in a new sheet','画布':'Sheet',
+  '甘特图':'Gantt','📅 甘特图 · 项目进度':'📅 Gantt · project timeline','关闭甘特图':'Close Gantt',
+  '本画布还没有带「开始/截止日期」的任务':'No topics with start/due dates on this sheet yet',
+  '在主题右键「任务信息」里填开始日期和截止日期，就会出现在这里':'Set start & due dates in a topic’s “Task info” and it shows up here',
+  '负责人':'Assignee','进度':'Progress','未排期':'Undated',
 };
 const EN2ZH = {}; for(const k in I18N){ if(!(I18N[k] in EN2ZH)) EN2ZH[I18N[k]]=k; }
 function t(s){ return (LANG==='en' && I18N[s]) ? I18N[s] : s; }
@@ -4434,7 +5277,7 @@ function translateNode(root){
   root.querySelectorAll('[placeholder]').forEach(el=>{ const v=el.getAttribute('placeholder').trim(); if(v&&map[v]!==undefined) el.setAttribute('placeholder',map[v]); });
 }
 const I18N_CHROME=['#menubar','#toolbar','#start','#settingsMask','#fileMenu','#exportSub','#jpgSub','#tidyMenu','#structMenu',
-  '#empty','#readBadge','#focusBar','#markerPanel','#noteMask','#uiGalleryMask','#outlineHead'];
+  '#empty','#focusBar','#markerPanel','#taskPanel','#tagPanel','#linkPanel','#noteMask','#uiGalleryMask','#outlineHead','#sheetTabs','#ganttMask'];
 function applyLang(){
   document.body.classList.toggle('lang-en', LANG==='en');
   I18N_CHROME.forEach(sel=>{ const el=document.querySelector(sel); if(el) translateNode(el); });
@@ -4618,6 +5461,7 @@ function centerContent(){
 window.addEventListener('load',()=>{ roots.length ? centerContent() : centerWorld(3000,1800); });
 centerWorld(3000,1800);
 refreshFileLabel();
+sheets=[sheetData(false)]; curSheet=0; renderSheetTabs();   // 初始空画布作为 sheet 0（doNew/打开文件会重建）
 initHistory();
 // 蜘蛛网卡片缩略图 + 初始化文档类型
 (function(){ const th=document.querySelector('#scSpider .nc-thumb'); if(th){ th.style.fontSize='0'; th.innerHTML=buildWebSVG(30,8,3); } })();
