@@ -1,67 +1,53 @@
-<div align="center">
-  <img src="assets/icon-256.png" width="120" alt="ThoughtCanvas">
-  <h1>ThoughtCanvas · 思维画布</h1>
-  <p><b>A fully customizable, local-first, open-source thinking tool</b></p>
-  <p>完全自定义 · 本地优先 · 免费开源的桌面思维工具</p>
-</div>
+# BMAP 界面编辑器 V0.0.3
 
----
+从零手搓 ThoughtCanvas 界面。保存的 `.bmapui` 在 ThoughtCanvas「设置 → 外观 → 导入」直接生效。
 
-## English
+## V0.0.3 相对 V0.0.2 的改动（全部来自用户实测反馈）
 
-**ThoughtCanvas** is a free, open-source desktop mind-mapping tool. It offers two
-structures — **brace maps** and **spider-web maps** — and focuses on **deep
-customization** (swappable UI skins, custom colors and styles) and a
-**local-first, open file format** (`.bmap`, plain JSON). No forced login, no cloud
-lock-in — your data stays on your own machine.
+- **撤销/重做**：Ctrl+Z / Ctrl+Y（顶栏也有按钮）。整画布快照式，最多 60 步；
+  滑滑块、敲颜色等连续微调自动合并成一步。拖动只有真移动了才记一步。
+- **"一键添加整套原版"已移除**：从零画才是主角。没添加、没改的部分导出时
+  本来就自动保持原版（只输出改动项），界面上把这一点写明白了；组件库改名
+  「原版部件（想改哪个加哪个）」并挪到"从零画"下面。
+- **真实预览大改（可试玩）**：大括号、连线+锚点、右键菜单、底部操作条全部
+  显示；卡片文字 contenteditable 可直接打字换行，卡片变长变高时大括号和
+  连线用 JS 实时重算跟随——"拉伸测试"看得见了。
+- **右侧面板可拖动调大小**：图层列表随窗口自动撑满；图层区和属性区之间有
+  横向拖动条；右栏整体宽度也能拖（250–600px）。
+- **遮罩一键用**：选中图形/手绘/图片后点「🎭 加遮罩」，遮罩自动盖在该层上方
+  （立刻看到裁剪效果），拖动/缩放遮罩即懂；原勾选框保留（把图形本身变遮罩）。
 
-- 🗂 **Brace maps** — dynamic braces, magnetic snapping, reverse braces
-- 🕸 **Spider-web maps** — free anchor connections, smart tidy-up
-- 🧩 **Multiple structures** — brace, logic chart, org chart, tree, timeline, fishbone, matrix, tree-table; switch the whole map or just one branch (mixed layouts)
-- ⌨️ **Keyboard-first** — Tab = child, Enter = sibling, F2 = rename, arrows to move; build a whole map without the mouse
-- 📋 **Outline view** — linear, two-way live sync with the map
-- 🏷 **Rich topics** — markers (priority / progress / flags / symbols), tags, notes, hyperlinks
-- 🎨 **Deep UI customization** — multiple built-in skins, import your own CSS skins & color schemes
-- 🖼 **Free canvas** — drag nodes anywhere, one-click auto-arrange
-- 💾 **Open format** — `.bmap` is just JSON: readable, lossless
-- 🖥 **Portable** — no install, no registry writes; delete to uninstall
+## V0.0.3 追加（原版参考底图 + 偏好设置，同版本内迭代）
 
-**Run the release:** download the release folder and double-click `ThoughtCanvas.exe`
-(Windows x64, no installation, no dependencies). **Build from source:** `npm install`
-then `npm start`.
+- **画布原版参考底图**：你还没添加的原版部件，以低透明度"淡淡地"显示在画布上，
+  让从零画也有位置参照。鼠标悬停会提亮，**点一下就把它加进来改**。
+- **选中提亮**：正在改的那个部件透明度往上提一点，但不到正常水平（一眼能认出
+  "这是我在改的原版部件"而不是"我画的东西"）。你画的图形/手绘/图片始终正常浓度。
+- **⚙ 偏好设置**（顶栏按钮，存 `%AppData%\BMAP界面编辑器\prefs.json`）：
+  - 画布：是否显示未添加的原版参考、原版 UI 浓度（5–100%）。
+  - 真实预览：没改过的原版部分 = 完整显示 / 淡化（可调程度）/ 隐藏。
+    改过颜色的部件保持完整——这样预览里一眼看清"我到底做了什么"。
 
-> Early-stage project, actively evolving.
+## 机制备忘
 
-## 中文
+- 撤销实现：`SnapshotJson()` 序列化整个元素列表进撤销栈，`RestoreSnapshot()`
+  重建画布；coalesceKey+1 秒窗口合并连续微调。
+- 预览的大括号/连线：`Preview.TestMarkup` 里的 SVG + 脚本按卡片实际包围盒
+  重算路径（ResizeObserver + input 事件驱动）。
+- 其余同 V0.0.2（组件库/图层/遮罩导出 clipPath/画笔/图片/只导出改动项）。
 
-**ThoughtCanvas(思维画布)** 是一款免费、开源的桌面思维导图工具。提供 **大括号思维导图**
-与 **蜘蛛网思维导图** 两种结构,主打 **极致自定义**(可换整套界面皮肤、自定义配色与样式)
-与 **本地优先、开放的文件格式**(`.bmap`,就是 JSON)。不强制登录、不上云,数据始终在你自己电脑上。
+## 构建 / 发布
 
-- 🗂 **大括号思维导图** —— 动态大括号、磁吸吸附、反向括号
-- 🕸 **蜘蛛网思维导图** —— 自由锚点连线、智能整理
-- 🧩 **多种结构** —— 大括号、逻辑图、组织结构图、树状图、时间轴、鱼骨图、矩阵、树形表格;可整图切换,也可单独给某个分支换结构(混合布局)
-- ⌨️ **键盘流** —— Tab 加子级、Enter 加同级、F2 改名、方向键移动,全程不碰鼠标即可建图
-- 📋 **大纲视图** —— 线性层级编辑,与导图实时双向同步
-- 🏷 **富节点** —— 标记(优先级 / 进度 / 旗帜 / 符号)、标签、备注、超链接
-- 🎨 **极致自定义 UI** —— 内置多套皮肤一键切换,支持导入自定义 CSS 皮肤与配色方案
-- 🖼 **自由画布** —— 节点随意拖放,一键智能整理回规整布局
-- 💾 **开放格式** —— `.bmap` 即 JSON,可读、可无损打开
-- 🖥 **绿色便携** —— 免安装、不写注册表,删除即卸载干净
+```powershell
+& "$env:USERPROFILE\.dotnet\dotnet.exe" build -c Release
+& "$env:USERPROFILE\.dotnet\dotnet.exe" publish "BMAP界面编辑器.csproj" -c Release -r win-x64 --self-contained true -o "..\BMAP界面编辑器 V0.0.3 发行版"
+```
 
-**运行发行版:** 下载发行版文件夹,双击 `ThoughtCanvas.exe` 即可(Windows 64 位,免安装、无环境依赖)。
-**从源码运行:** `npm install` 后 `npm start`。
+.cs/.xaml 含中文，编译前保证 UTF-8 **带 BOM**。
 
-> 本项目处于早期阶段,仍在持续完善。
+## 排队中的需求
 
-## License / 许可证
-
-Copyright (C) 2026 happymore
-
-自有代码采用 **[GPL-3.0](LICENSE)** 协议(copyleft:任何人可使用、修改、**商用**,但
-**发布衍生版本时必须同样以 GPL 开源源码**)。打包的第三方框架与字体沿用各自许可证
-(多为 MIT、字体为 OFL,均与 GPL 兼容),见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
-
-The author's own code is licensed under GPL-3.0 (copyleft — commercial use is allowed,
-but distributed derivatives must also be released under GPL). Bundled third-party
-components keep their own licenses (mostly MIT, OFL for fonts).
+- V0.0.4：关键帧尺寸动画（横/纵/双条件触发+自动补间，CSS 容器查询）；
+  从零画的文本框"内容区框选"；手绘缩放。
+- V0.0.5（需 ThoughtCanvas 本体加扩展口）：大括号/连线形状级编辑、
+  右键菜单与底部图标图案级替换、开始页组件。

@@ -1,13 +1,2 @@
-node_modules/
-dist/
-build-out/
-*.log
-Thumbs.db
-.DS_Store
-
-# 微软 MS Sans Serif 字体不随仓库分发（版权规避）；本地使用不受影响，
-# win98/xp 皮肤在克隆者环境下会自动回退到系统字体。
-libs/skins/win98/ms_sans_serif*.woff
-libs/skins/win98/ms_sans_serif*.woff2
-libs/skins/xp/ms_sans_serif*.woff
-libs/skins/xp/ms_sans_serif*.woff2
+﻿bin/
+obj/
