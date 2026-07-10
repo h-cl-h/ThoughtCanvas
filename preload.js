@@ -2,8 +2,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
   isDesktop: true,
-  saveAs: (content, defaultName) => ipcRenderer.invoke('save-as', { content, defaultName }),
-  save: (content, filePath) => ipcRenderer.invoke('save', { content, filePath }),
+  saveBegin: (filePath, defaultName) => ipcRenderer.invoke('save-begin', { filePath, defaultName }),
+  saveChunk: (id, chunk) => ipcRenderer.invoke('save-chunk', { id, chunk }),
+  saveEnd: (id, abort = false) => ipcRenderer.invoke('save-end', { id, abort }),
   open: () => ipcRenderer.invoke('open'),
   openPath: (filePath) => ipcRenderer.invoke('open-path', filePath),
   exportSave: (base64, defaultName, ext) => ipcRenderer.invoke('export-save', { base64, defaultName, ext }),

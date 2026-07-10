@@ -32,9 +32,14 @@ lock-in — your data stays on your own machine.
 - 💾 **Open format** — `.bmap` is just JSON: readable, lossless
 - 🖥 **Portable** — no install, no registry writes; delete to uninstall
 
-**Run the release:** download the release folder and double-click `ThoughtCanvas.exe`
-(Windows x64, no installation, no dependencies). **Build from source:** `npm install`
-then `npm start`.
+**Run the release:** use `ThoughtCanvas-Setup-<version>.exe` for a normal Windows
+installation, or `ThoughtCanvas-<version>-Portable.exe` for a no-install version.
+**Build from source:** run `npm install`, then `npm start` for development or
+`npm run dist:win` to create both Windows packages. Use `npm run dist:win:installer`
+or `npm run dist:win:portable` to build only one target. Local packages are unsigned.
+
+Run `npm run test:performance` for the built-in multi-sheet stress test. It verifies
+lazy sheet loading, cached sheet switching, incremental undo/redo, and streamed saves.
 
 > Early-stage project, actively evolving.
 
@@ -61,10 +66,63 @@ then `npm start`.
 - 💾 **开放格式** —— `.bmap` 即 JSON,可读、可无损打开
 - 🖥 **绿色便携** —— 免安装、不写注册表,删除即卸载干净
 
-**运行发行版:** 下载发行版文件夹,双击 `ThoughtCanvas.exe` 即可(Windows 64 位,免安装、无环境依赖)。
-**从源码运行:** `npm install` 后 `npm start`。
+**运行发行版:** 使用 `ThoughtCanvas-Setup-<版本>.exe` 正常安装 Windows 应用,或使用
+`ThoughtCanvas-<版本>-Portable.exe` 免安装运行。
+**从源码运行:** 执行 `npm install`,开发运行使用 `npm start`;执行 `npm run dist:win`
+可同时生成安装版和便携版。也可使用 `npm run dist:win:installer` 或
+`npm run dist:win:portable` 单独构建。默认生成的本地安装包未签名。
+
+执行 `npm run test:performance` 可运行内置多画布压力测试,验证画布懒加载、切换缓存、
+增量撤销/重做及分片保存的完整性。
 
 > 本项目处于早期阶段,仍在持续完善。
+
+### Windows 打包说明
+
+正常情况下执行 `npm run dist:win`，会同时生成 NSIS 安装版和便携版。Windows
+应用、安装包和 `.bmap` 文件关联统一使用仓库原有的 `build/icon.ico`。不要在
+`package.json` 中设置 `"signAndEditExecutable": false`，否则 electron-builder
+不会把图标和产品信息写入应用 EXE，Windows 将显示 Electron 默认图标。
+
+如果 electron-builder 解压 `winCodeSign` 时因当前 Windows 用户无符号链接权限而
+失败，优先开启 Windows 开发者模式或在具备相应权限的终端中重新执行标准命令。
+若只需在当前机器完成本地构建，可采用以下两阶段流程，不要把临时规避配置写回
+`package.json`：
+
+```powershell
+# 1. 临时跳过资源写入，生成应用目录
+npm exec electron-builder -- --dir --win --config.win.signAndEditExecutable=false
+
+# 2. 使用 electron-builder 已下载的 rcedit 写入原图标和产品信息
+$pkg = Get-Content package.json -Raw | ConvertFrom-Json
+$product = $pkg.build.productName
+$version = $pkg.version
+$productVersion = "$version.0"
+$copyright = "Copyright © $((Get-Date).Year) $($pkg.author)"
+$rcedit = Get-ChildItem "$env:LOCALAPPDATA\electron-builder\Cache\winCodeSign" `
+  -Filter rcedit-x64.exe -File -Recurse | Select-Object -First 1 -ExpandProperty FullName
+if (-not $rcedit) { throw '未找到 rcedit-x64.exe' }
+
+& $rcedit "dist\win-unpacked\ThoughtCanvas.exe" `
+  --set-version-string FileDescription $product `
+  --set-version-string ProductName $product `
+  --set-version-string CompanyName $pkg.author `
+  --set-version-string LegalCopyright $copyright `
+  --set-version-string InternalName $product `
+  --set-version-string OriginalFilename "ThoughtCanvas.exe" `
+  --set-file-version $version `
+  --set-product-version $productVersion `
+  --set-icon "build\icon.ico"
+
+# 3. 基于处理后的目录生成安装版和便携版
+npm exec electron-builder -- --win nsis portable --prepackaged dist\win-unpacked
+```
+
+构建完成后，应检查 `dist\win-unpacked\ThoughtCanvas.exe`、安装版和便携版的
+图标，并确认 EXE 属性中的产品名称和版本不再是 Electron。最终产物位于 `dist/`：
+
+- `ThoughtCanvas-Setup-<版本>.exe`
+- `ThoughtCanvas-<版本>-Portable.exe`
 
 ## License / 许可证
 
