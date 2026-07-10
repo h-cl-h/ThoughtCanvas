@@ -19,6 +19,7 @@ lock-in — your data stays on your own machine.
 - 🕸 **Spider-web maps** — free anchor connections, smart tidy-up (radial / grid / timeline)
 - 🧩 **Multiple structures** — brace, logic chart, org chart, tree, timeline, fishbone, matrix, tree-table; switch the whole map or just one branch (mixed layouts)
 - 🗂 **Multiple sheets** — many canvases in one file with bottom tabs (add / rename / delete / switch); right-click a topic to open that branch in a new sheet
+- ✨ **AI mind maps — read, create & edit (bring-your-own model)** — connect **your own** local model (Ollama / LM Studio / llama.cpp, any OpenAI-compatible endpoint) or a third-party **API key** (DeepSeek / OpenAI / SiliconFlow…). Chat to describe a topic: the AI first gives a **cheap rough plan + the best-fit structure**, you confirm (and can change the structure), then it generates the full map — as one page or **several pages at once**. It can also **read your current canvas** and either **edit it in place** or build a **new** map beside it (in *new* mode it only references your map and never changes or deletes it). Keeps running in the **background** if you close the panel, shows a live **token speed / usage** meter, and the whole **conversation is saved inside the `.bmap`**. Fully optional — nothing is bundled; your API key stays on your machine and is sent only to the endpoint you set (local models cost nothing). Two entry points: the **AI mind map** card on the start page, and the **✨ AI Assistant** item in the menu bar
 - 📅 **Gantt view** — turns topics' task info (start/due dates + progress) into a timeline of progress bars; click a bar to jump to the topic
 - 📏 **Adjustable spacing & free nudging** — a per-structure link-spacing slider, plus drag any structure node (or the small handle beside it, hidden in read mode) freely in any direction — its connector re-routes to the nearest edge and follows. Alignment guides with magnetic snapping appear when nodes line up; "Smart tidy" resets a structure back to its clean auto-layout in one click
 - ⌨️ **Keyboard-first** — Tab = child, Enter = sibling, R = rename, arrows to move; every shortcut re-recordable in Settings
@@ -47,6 +48,7 @@ then `npm start`.
 - 🕸 **蜘蛛网思维导图** —— 自由锚点连线、智能整理(放射 / 网格 / 时间线)
 - 🧩 **多种结构** —— 大括号、逻辑图、组织结构图、树状图、时间轴、鱼骨图、矩阵、树形表格;可整图切换,也可单独给某个分支换结构(混合布局)
 - 🗂 **多画布** —— 一个文件里多张画布,底部标签栏切换(新增/改名/删除);右键主题可"在新画布中展开此分支"
+- ✨ **AI 生成 / 修改导图(接你自己的模型)** —— 接入 **你自己的** 本地模型(Ollama / LM Studio / llama.cpp 等任何 OpenAI 兼容接口)或第三方 **API Key**(DeepSeek / OpenAI / 硅基流动……)。对话里描述主题,AI 先给 **省算力的粗方案 + 最合适的结构**,你确认(可改结构)后再生成完整导图,可一次生成 **单页或多页**。还能 **读取你当前的画布**,选择 **就地修改** 这一页,或在旁边 **新建** 一张(新建模式只把原图当参考,绝不改动或删除它)。关掉面板它会 **在后台继续算**,底部实时显示 **token 速度与用量**,整段 **对话随 `.bmap` 一起保存**。纯可选——软件不打包任何模型,密钥只存本机、仅发往你自己填的地址(本地模型不花钱)。两个入口:开始页的 **AI 生成导图** 卡片,以及菜单栏的 **✨ AI 助手**
 - 📅 **甘特图** —— 把主题的任务信息(起止日期 + 进度)变成时间轴进度条;点进度条跳到对应主题
 - 📏 **间距可调 · 自由微调** —— 每种结构各有整图连线间距滑条;结构图里任意节点可**往任意方向自由拖动**(或拖它旁边的小圆手柄,阅读模式下隐藏),连线自动就近改边跟随;节点对齐时出现**对齐虚线 + 磁吸**;结构图的「智能整理」一键复位到干净自动排版
 - ⌨️ **键盘流** —— Tab 加子级、Enter 加同级、R 改名、方向键移动;所有快捷键都能在设置里重新录制

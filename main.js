@@ -115,6 +115,46 @@ const skinsFile = () => path.join(app.getPath('userData'), 'ui-skins.json');
 ipcMain.handle('skins-load', () => { try { return fs.readFileSync(skinsFile(), 'utf8'); } catch (err) { return null; } });
 ipcMain.handle('skins-save', (e, json) => { try { fs.writeFileSync(skinsFile(), json, 'utf8'); return { ok: true }; } catch (err) { return { ok: false, error: err.message }; } });
 
+// AI 设置（后端/地址/模型名/API Key）持久化到 userData 下的文件——同 UI 皮肤，重启不丢；密钥只落本地，绝不上传
+const aiConfFile = () => path.join(app.getPath('userData'), 'ai-config.json');
+ipcMain.handle('aiconf-load', () => { try { return fs.readFileSync(aiConfFile(), 'utf8'); } catch (err) { return null; } });
+ipcMain.handle('aiconf-save', (e, json) => { try { fs.writeFileSync(aiConfFile(), json, 'utf8'); return { ok: true }; } catch (err) { return { ok: false, error: err.message }; } });
+
+// AI 请求走主进程（Node，无浏览器 CORS 限制，可直连本地 Ollama/LM Studio 与各家云）。
+// 密钥/地址由渲染层传来，主进程只负责转发，不落任何日志、不改内容。
+const aiReqs = new Map();
+ipcMain.on('ai-chat-start', async (e, { reqId, url, headers, body }) => {
+  const controller = new AbortController();
+  aiReqs.set(reqId, controller);
+  const send = (ch, data) => { if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send(ch, Object.assign({ reqId }, data)); };
+  try {
+    const res = await fetch(url, { method: 'POST', headers, body, signal: controller.signal });
+    if (!res.ok) { let t = ''; try { t = await res.text(); } catch (_) {}
+      send('ai-chat-error', { message: 'HTTP ' + res.status + (t ? (' · ' + t.slice(0, 300)) : '') }); aiReqs.delete(reqId); return; }
+    if (!res.body) { const j = await res.json(); const c = (((j.choices || [])[0] || {}).message || {}).content || '';
+      send('ai-chat-raw', { chunk: 'data: ' + JSON.stringify({ choices: [{ delta: { content: c } }] }) + '\n' }); send('ai-chat-end', {}); aiReqs.delete(reqId); return; }
+    for await (const chunk of res.body) { send('ai-chat-raw', { chunk: Buffer.from(chunk).toString('utf8') }); }
+    send('ai-chat-end', {});
+  } catch (err) { send('ai-chat-error', { message: (err && err.message) || String(err) }); }
+  aiReqs.delete(reqId);
+});
+ipcMain.on('ai-chat-abort', (e, { reqId }) => { const c = aiReqs.get(reqId); if (c) { try { c.abort(); } catch (_) {} aiReqs.delete(reqId); } });
+// 测试连接（非流式，返回结果）
+ipcMain.handle('ai-probe', async (e, { url, headers, body }) => {
+  try { const res = await fetch(url, { method: 'POST', headers, body });
+    if (res.ok) return { ok: true };
+    let t = ''; try { t = await res.text(); } catch (_) {}
+    return { ok: false, status: res.status, text: t.slice(0, 200) };
+  } catch (err) { return { ok: false, error: (err && err.message) || String(err) }; }
+});
+// 列出端点可用模型（GET /models，OpenAI 兼容；Ollama/LM Studio/各家云都支持）
+ipcMain.handle('ai-models', async (e, { url, headers }) => {
+  try { const res = await fetch(url, { method: 'GET', headers });
+    if (!res.ok) { let t = ''; try { t = await res.text(); } catch (_) {} return { ok: false, status: res.status, text: t.slice(0, 200) }; }
+    const j = await res.json(); return { ok: true, data: j };
+  } catch (err) { return { ok: false, error: (err && err.message) || String(err) }; }
+});
+
 // 渲染层启动时索取“双击打开的初始文件”
 ipcMain.handle('get-initial-file', () => {
   if (!pendingFile) return null;

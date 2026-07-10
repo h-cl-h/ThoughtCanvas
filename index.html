@@ -779,6 +779,96 @@
   .uicard.user:hover .uidel{display:flex;}
   .uicard .uicur{position:absolute;top:7px;left:7px;font-size:10px;background:var(--accent);color:#fff;padding:2px 8px;border-radius:6px;display:none;z-index:2;}
   .uicard.on .uicur{display:block;}
+
+  /* ================= AI 助手（生成导图对话框，V0.0.7） ================= */
+  #aiMask{position:fixed;inset:0;z-index:350;background:rgba(20,22,28,.42);display:none;align-items:center;justify-content:center;}
+  #aiMask.open{display:flex;}
+  #aiBox{width:min(760px,94vw);height:min(88vh,860px);background:var(--panel,#fff);border:1px solid var(--card-border);
+    border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.34);display:flex;flex-direction:column;overflow:hidden;}
+  #aiBox .ai-head{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--card-border);background:var(--card-bg,#fff);}
+  #aiBox .ai-head .ai-logo{width:26px;height:26px;border-radius:8px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+  #aiBox .ai-head .ai-tt{font-weight:700;font-size:15px;color:var(--ink);}
+  #aiBox .ai-head .ai-sub{font-size:11.5px;color:var(--muted);font-weight:400;}
+  #aiBox .ai-head .sp{flex:1;}
+  #aiBox .ai-head button{width:30px;height:30px;border-radius:8px;border:1px solid var(--card-border);background:#fff;cursor:pointer;font-size:15px;color:var(--muted);line-height:1;}
+  #aiBox .ai-head button:hover{border-color:var(--accent);color:var(--accent);}
+  #aiBody{flex:1;overflow-y:auto;padding:18px 16px;display:flex;flex-direction:column;gap:14px;background:var(--canvas-bg,#f6f7f9);}
+  .ai-msg{max-width:88%;display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
+  .ai-msg.user{align-self:flex-end;align-items:flex-end;}
+  .ai-msg.bot{align-self:flex-start;align-items:flex-start;}
+  .ai-bubble{padding:10px 13px;border-radius:13px;font-size:13.5px;line-height:1.62;white-space:pre-wrap;word-break:break-word;}
+  .ai-msg.user .ai-bubble{background:var(--accent);color:#fff;border-bottom-right-radius:4px;}
+  .ai-msg.bot .ai-bubble{background:#fff;color:var(--ink);border:1px solid var(--card-border);border-bottom-left-radius:4px;}
+  .ai-msg.sys .ai-bubble{background:var(--accent-soft);color:var(--muted);border:1px dashed var(--card-border);font-size:12.5px;text-align:center;}
+  .ai-msg.sys{align-self:center;max-width:96%;}
+  /* 方案卡片：大纲预览 + 结构选择 + 生成按钮 */
+  .ai-plan{margin-top:2px;background:#fff;border:1px solid var(--accent);border-radius:12px;overflow:hidden;width:100%;flex-shrink:0;}
+  .ai-plan .apl-h{padding:9px 13px;background:var(--accent-soft);font-size:12px;font-weight:700;color:var(--accent);display:flex;align-items:center;gap:7px;}
+  .ai-plan .apl-outline{padding:11px 14px;font-size:13px;line-height:1.5;color:var(--ink);max-height:230px;overflow-y:auto;white-space:pre-wrap;font-family:inherit;}
+  .ai-plan .apl-foot{padding:10px 13px;border-top:1px solid var(--card-border);display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+  .ai-plan .apl-foot label{font-size:12px;color:var(--muted);}
+  .ai-plan select.apl-struct{padding:6px 9px;border:1px solid var(--card-border);border-radius:8px;font-size:12.5px;background:#fff;color:var(--ink);cursor:pointer;}
+  .ai-plan .apl-gen{margin-left:auto;padding:8px 16px;border:0;border-radius:9px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;}
+  .ai-plan .apl-gen:hover{filter:brightness(1.06);}
+  .ai-plan.done{border-color:var(--card-border);opacity:.72;}
+  .ai-plan.done .apl-gen{background:var(--muted);cursor:default;}
+  .ai-typing{font-size:12.5px;color:var(--muted);font-style:italic;}
+  #aiFoot{border-top:1px solid var(--card-border);padding:10px 14px 12px;background:var(--card-bg,#fff);display:flex;flex-direction:column;gap:8px;}
+  #aiFoot .ai-row{display:flex;align-items:flex-end;gap:9px;}
+  #aiInput{flex:1;resize:none;min-height:42px;max-height:150px;padding:10px 12px;border:1px solid var(--card-border);border-radius:11px;
+    font-size:13.5px;font-family:inherit;line-height:1.5;color:var(--ink);background:#fff;outline:none;}
+  #aiInput:focus{border-color:var(--accent);}
+  #aiSend{width:44px;height:44px;flex-shrink:0;border:0;border-radius:11px;background:var(--accent);color:#fff;font-size:18px;cursor:pointer;line-height:1;}
+  #aiSend:disabled{background:var(--muted);cursor:default;}
+  #aiSend.stopping{background:var(--danger);font-size:15px;}     /* 生成中 = 点它停止 */
+  #menubar .mb-item .mb-badge{display:none;width:7px;height:7px;border-radius:50%;background:var(--danger);margin-left:5px;}
+  #menubar .mb-item.has-done{color:var(--accent);}
+  #menubar .mb-item.has-done .mb-badge{display:inline-block;animation:aibadge 1.2s ease-in-out infinite;}
+  @keyframes aibadge{0%,100%{opacity:1}50%{opacity:.35}}
+  #aiFoot .ai-barrow{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  #aiFoot .ai-modelbar{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted);flex-wrap:wrap;}
+  #aiFoot .ai-meter{display:none;align-items:center;gap:5px;font-size:11px;color:var(--muted);white-space:nowrap;margin-left:auto;}
+  #aiFoot .ai-meter.on{display:flex;}
+  #aiFoot .ai-meter b{font-weight:600;color:var(--ink);}
+  #aiFoot .ai-meter.done{color:#1a9d55;}
+  #aiFoot .ai-meter .amdot{color:var(--muted);opacity:.6;}
+  #aiFoot .ai-scope{display:flex;gap:6px;}
+  #aiFoot .ai-scope .asc{padding:4px 12px;border:1px solid var(--card-border);border-radius:16px;background:#fff;font-size:12px;color:var(--muted);cursor:pointer;user-select:none;}
+  #aiFoot .ai-scope .asc:hover{border-color:var(--accent);}
+  #aiFoot .ai-scope .asc.on{background:var(--accent);color:#fff;border-color:var(--accent);}
+  #aiFoot .ai-modelbar .ai-chip{padding:3px 9px;border:1px solid var(--card-border);border-radius:20px;background:#fff;cursor:pointer;color:var(--ink);}
+  #aiFoot .ai-modelbar .ai-chip:hover{border-color:var(--accent);color:var(--accent);}
+  #aiFoot .ai-modelbar .ai-chip.warn{border-color:var(--danger);color:var(--danger);}
+  /* AI 设置面板（后端 / 地址 / 模型 / Key） */
+  #aiCfg{position:absolute;inset:0;background:var(--card-bg,#fff);display:none;flex-direction:column;}
+  #aiCfg.open{display:flex;}
+  #aiCfg .acf-body{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:15px;}
+  #aiCfg .acf-row{display:flex;flex-direction:column;gap:5px;}
+  #aiCfg .acf-row label{font-size:12px;font-weight:600;color:var(--ink);}
+  #aiCfg .acf-row .hint{font-size:11px;color:var(--muted);font-weight:400;line-height:1.5;}
+  #aiCfg input,#aiCfg select{padding:9px 11px;border:1px solid var(--card-border);border-radius:9px;font-size:13px;background:#fff;color:var(--ink);outline:none;font-family:inherit;}
+  #aiCfg input:focus,#aiCfg select:focus{border-color:var(--accent);}
+  #aiCfg .acf-preset{display:flex;flex-wrap:wrap;gap:7px;}
+  #aiCfg .acf-preset button{padding:6px 12px;border:1px solid var(--card-border);border-radius:20px;background:#fff;font-size:12px;cursor:pointer;color:var(--ink);}
+  #aiCfg .acf-preset button:hover{border-color:var(--accent);color:var(--accent);}
+  #aiCfg .acf-foot{padding:12px 20px;border-top:1px solid var(--card-border);display:flex;gap:10px;align-items:center;}
+  #aiCfg .acf-foot .sp{flex:1;}
+  #aiCfg .acf-foot button{padding:9px 18px;border-radius:9px;font-size:13px;cursor:pointer;font-weight:600;}
+  #aiCfg .acf-test{border:1px solid var(--card-border);background:#fff;color:var(--ink);}
+  #aiCfg .acf-save{border:0;background:var(--accent);color:#fff;}
+  #aiCfg .acf-mini{margin-left:8px;padding:2px 9px;border:1px solid var(--card-border);border-radius:14px;background:#fff;font-size:11px;font-weight:400;color:var(--accent);cursor:pointer;}
+  #aiCfg .acf-mini:hover{border-color:var(--accent);}
+  #aiCfg .acf-mini:disabled{color:var(--muted);cursor:default;}
+  #aiCfg .acf-chips{display:flex;flex-wrap:wrap;gap:6px;max-height:190px;overflow-y:auto;padding:2px;}
+  #aiCfg .acf-chips:empty{display:none;}
+  #aiCfg .acf-chips .mchip.note{flex-basis:100%;margin-top:4px;}
+  #aiCfg .acf-chips .mchip{padding:4px 10px;border:1px solid var(--card-border);border-radius:14px;background:var(--accent-soft);color:var(--ink);font-size:12px;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  #aiCfg .acf-chips .mchip:hover{border-color:var(--accent);color:var(--accent);}
+  #aiCfg .acf-chips .mchip.note{background:transparent;border:0;color:var(--muted);cursor:default;}
+  #aiCfg .acf-status{font-size:12px;color:var(--muted);}
+  #aiCfg .acf-status.ok{color:#1a9d55;}#aiCfg .acf-status.err{color:var(--danger);}
+  /* 开始页 AI 卡片高亮 */
+  .newcard.sc-ai .nc-thumb{background:linear-gradient(135deg,var(--accent),#8b5cf6);color:#fff;}
 </style>
 </head>
 <body>
@@ -789,7 +879,7 @@
     <div class="brand"><span class="logo">✦</span><div><div class="bt">ThoughtCanvas</div><div class="bs">思维画布</div></div></div>
     <div class="side-sub">大括号 · 蜘蛛网 · 多种结构图<br>自由梳理你的思路结构</div>
     <button id="scSettings" class="side-btn">⚙ 设置</button>
-    <div class="ver">V0.0.6</div>
+    <div class="ver">V0.0.7</div>
   </div>
   <div class="start-main">
     <h2 class="sh">开始</h2>
@@ -803,6 +893,11 @@
         <div class="nc-thumb sample">✳</div>
         <div class="nc-t">新建蜘蛛网思维导图</div>
         <div class="nc-s">锚点连线·自由发散</div>
+      </div>
+      <div class="newcard sc-ai" id="scAI">
+        <div class="nc-thumb">✨</div>
+        <div class="nc-t">AI 生成导图</div>
+        <div class="nc-s">一句话 · AI 帮你画</div>
       </div>
       <div class="newcard" id="scOpen">
         <div class="nc-thumb open">📂</div>
@@ -835,6 +930,7 @@
   <div class="mb-item" data-menu="view"><span class="lbl">视图</span></div>
   <div class="mb-item" data-menu="window"><span class="lbl">窗口</span></div>
   <div class="mb-item" data-menu="help"><span class="lbl">帮助</span></div>
+  <div class="mb-item" id="aiMenuBtn" data-menu="ai"><span class="lbl">AI 助手</span><span class="mb-badge" title="后台已生成，点开查看"></span></div>
 </div>
 <div id="toolbar">
   <button class="btn icon" id="undoBtn" data-tbk="undo" title="撤销 (Ctrl+Z)">↶</button>
@@ -1064,6 +1160,75 @@
 <div id="ganttMask"><div id="ganttBox">
   <div class="gt-head"><span>📅 甘特图 · 项目进度</span><button id="ganttClose" title="关闭甘特图">✕</button></div>
   <div id="ganttBody"></div>
+</div></div>
+
+<!-- ================= AI 助手（生成导图对话框，V0.0.7） ================= -->
+<div id="aiMask"><div id="aiBox">
+  <div class="ai-head">
+    <span class="ai-logo">✨</span>
+    <div><div class="ai-tt" id="aiTitle">AI 生成导图</div><div class="ai-sub" id="aiSubtitle">先出方案 · 你确认 · 再绘图</div></div>
+    <span class="sp"></span>
+    <button id="aiCfgBtn" title="AI 设置（模型 / API Key）">⚙</button>
+    <button id="aiClose" title="关闭">✕</button>
+  </div>
+  <div id="aiBody"></div>
+  <div id="aiFoot">
+    <div class="ai-scope" id="aiScope">
+      <span class="asc" data-scope="edit" title="读取并可增删改当前这张画布（只改这一页）">✏️ 改当前画布</span>
+      <span class="asc" data-scope="new" title="可参考当前画布，但只新建一张新导图，绝不改动或删除原图">➕ 新建导图</span>
+    </div>
+    <div class="ai-barrow">
+      <div class="ai-modelbar" id="aiModelBar"></div>
+      <div id="aiMeter" class="ai-meter" title="生成速度 / 本次 / 累计 token（本地模型无外部费用，仅供参考）"></div>
+    </div>
+    <div class="ai-row">
+      <textarea id="aiInput" placeholder="描述你想要的导图，例如：做一个关于英语现在进行时语法的导图" rows="1"></textarea>
+      <button id="aiSend" title="发送 (Enter)">➤</button>
+    </div>
+  </div>
+  <!-- 设置子面板 -->
+  <div id="aiCfg">
+    <div class="ai-head">
+      <span class="ai-logo">⚙</span>
+      <div><div class="ai-tt">AI 设置</div><div class="ai-sub">接入你自己的本地模型或 API Key · 只存本地，绝不上传</div></div>
+      <span class="sp"></span>
+      <button id="aiCfgBack" title="返回对话">✕</button>
+    </div>
+    <div class="acf-body">
+      <div class="acf-row">
+        <label>快速预设</label>
+        <div class="acf-preset" id="aiPreset">
+          <button data-preset="ollama">🖥 本地 Ollama</button>
+          <button data-preset="lmstudio">🖥 LM Studio</button>
+          <button data-preset="deepseek">☁ DeepSeek</button>
+          <button data-preset="openai">☁ OpenAI</button>
+          <button data-preset="siliconflow">☁ 硅基流动</button>
+        </div>
+      </div>
+      <div class="acf-row">
+        <label>接口地址（OpenAI 兼容 Base URL）</label>
+        <input id="aiBaseUrl" type="text" placeholder="http://localhost:11434/v1" spellcheck="false">
+        <span class="hint">本地模型（Ollama / LM Studio / llama.cpp 等）与各家云服务都用这一套 OpenAI 兼容接口，填对地址即可。</span>
+      </div>
+      <div class="acf-row">
+        <label>模型名称 <button type="button" id="aiListModels" class="acf-mini">📋 列出可用模型</button></label>
+        <input id="aiModel" type="text" placeholder="qwen2.5:7b 或 deepseek-chat" spellcheck="false">
+        <div id="aiModelChips" class="acf-chips"></div>
+        <span class="hint">填错会报 <code>invalid model name</code>。点上面「列出可用模型」从你的服务里直接选；或本地跑 <code>ollama list</code> 看名字（如 <code>qwen2.5:7b</code>），云服务填官方模型名（如 <code>deepseek-chat</code>）。</span>
+      </div>
+      <div class="acf-row">
+        <label>API Key（本地模型可留空）</label>
+        <input id="aiKey" type="password" placeholder="sk-... （仅第三方 API 需要）" spellcheck="false" autocomplete="off">
+        <span class="hint">密钥只保存在你本机，随请求直接发往你填写的地址，本软件不经过任何中转服务器。</span>
+      </div>
+    </div>
+    <div class="acf-foot">
+      <button class="acf-test" id="aiTest">测试连接</button>
+      <span class="acf-status" id="aiCfgStatus"></span>
+      <span class="sp"></span>
+      <button class="acf-save" id="aiCfgSave">保存</button>
+    </div>
+  </div>
 </div></div>
 
 <!-- 大纲视图侧栏 -->
@@ -3201,7 +3366,8 @@ function restoreSheetView(d){ const v=d.view||{};
 // 把当前模型序列化为干净 JSON（多画布 version:2；单画布向后兼容）
 function serialize(){
   syncActiveSheet();
-  return JSON.stringify({app:'brace-mindmap', version:2, name:curName, curSheet, sheets}, null, 1);
+  // aiChat：把生成/修改这张图的 AI 对话记录一起存进文件（文件级；再次打开可回看/续聊）
+  return JSON.stringify({app:'brace-mindmap', version:2, name:curName, curSheet, sheets, aiChat:aiChatForSave()}, null, 1);
 }
 function loadData(text, fallbackName){
   let d; try{ d=JSON.parse(text); }catch(e){ alert('文件格式无法识别'); return false; }
@@ -3214,6 +3380,7 @@ function loadData(text, fallbackName){
   scale = (sheets[curSheet].view && sheets[curSheet].view.scale) ? sheets[curSheet].view.scale : 1;
   centerContent();
   renderSheetTabs(); initHistory();
+  aiLoadChat(d.aiChat);                                    // 恢复随文件保存的 AI 对话记录
   return true;
 }
 // ---- 多画布：新增 / 切换 / 删除 / 改名 ----
@@ -3269,6 +3436,701 @@ function startRenameSheet(i, el){
   el.addEventListener('blur',()=>done(true), {once:true});
 }
 document.getElementById('sheetAdd').onclick=()=>addSheet(docType);
+
+//================ ✨ AI 助手：一句话生成导图（BYO 本地模型 / API Key，V0.0.7） ================
+// 红线：纯可选、纯本地优先——不配模型软件照常用；输出走 Markdown→渲染（不让模型直接吐 .bmap）；
+// 密钥只存本地，随请求直接发往用户填写的地址，本软件不做任何中转。
+const AI_STRUCTS=[
+  {code:'brace',    zh:'大括号',    en:'Brace'},
+  {code:'logicR',   zh:'逻辑图',    en:'Logic'},
+  {code:'orgD',     zh:'组织结构图', en:'Org chart'},
+  {code:'tree',     zh:'树状图',    en:'Tree'},
+  {code:'timeline', zh:'时间轴',    en:'Timeline'},
+  {code:'fishbone', zh:'鱼骨图',    en:'Fishbone'},
+  {code:'matrix',   zh:'矩阵',      en:'Matrix'},
+  {code:'treetable',zh:'树形表格',  en:'Tree table'},
+];
+function aiStructLabel(code){ const s=AI_STRUCTS.find(x=>x.code===code); return s?(LANG==='en'?s.en:s.zh):code; }
+// 把模型给出的结构 token（中/英/代码，各种写法）归一到内部 struct code
+function aiNormalizeStruct(tok){
+  const s=(''+(tok||'')).trim().toLowerCase();
+  if(!s) return 'brace';
+  if(/树形表格|tree\s*table|treetable|table/.test(s)) return 'treetable';
+  if(/时间轴|时间线|时间|timeline|time/.test(s)) return 'timeline';
+  if(/鱼骨|fishbone|fish|ishikawa/.test(s)) return 'fishbone';
+  if(/矩阵|matrix|grid/.test(s)) return 'matrix';
+  if(/组织|org/.test(s)) return 'orgD';
+  if(/逻辑|logic/.test(s)) return 'logicR';
+  if(/树状|树形|\btree\b|树/.test(s)) return 'tree';
+  if(/大括号|括号|brace|bracket/.test(s)) return 'brace';
+  return 'brace';
+}
+// Markdown / 大纲文本 → 嵌套树 [{text,children:[]}]
+// 支持 #~###### 标题 与 -/*/+ 及有序列表的缩进层级；两者统一用一条单调的 level 尺度归并。
+function aiParseOutline(md){
+  const lines=(md||'').replace(/\r/g,'').replace(/\t/g,'    ').split('\n');
+  const roots=[]; const stack=[]; // stack: {lv,node}
+  const clean=s=> s.replace(/\*\*|__|`|~~/g,'')            // 去粗体/代码/删除线标记
+                    .replace(/\[([^\]]+)\]\([^)]*\)/g,'$1') // [文字](链接)→文字
+                    .replace(/^\s*[-*+]\s+\[[ xX]\]\s*/,'') // 任务清单勾选框
+                    .trim();
+  for(let raw of lines){
+    if(!raw.trim()) continue;
+    let lv, text;
+    const h=/^(#{1,6})\s+(.*)$/.exec(raw);
+    const li=/^(\s*)(?:[-*+]|\d+[.)])\s+(.*)$/.exec(raw);
+    if(h){ lv=h[1].length; text=clean(h[2]); }
+    else if(li){ lv=50+li[1].length; text=clean(li[2]); }     // 列表恒深于任何标题；缩进越多越深
+    else { lv=40; text=clean(raw); }                          // 裸行：当作一级项
+    if(!text) continue;
+    const node={text, children:[]};
+    while(stack.length && stack[stack.length-1].lv>=lv) stack.pop();
+    if(stack.length) stack[stack.length-1].node.children.push(node);
+    else roots.push(node);
+    stack.push({lv, node});
+  }
+  return roots;
+}
+// 嵌套树 + 结构 → 一张干净的画布数据对象（同 drillDownToNewSheet 的构造思路）
+function aiBuildSheet(tree, structCode, name){
+  const tb={}, br={}; let n=0, bn=0;
+  const walk=(node,isRoot)=>{
+    const id='t'+(++n);
+    tb[id]={id, text:(node.text||'主题'), locked:false, parentBrace:null, brace:null, x:3000, y:1800};
+    if(isRoot && structCode && structCode!=='brace') tb[id].struct=structCode;
+    if(node.children && node.children.length){
+      const bid='b'+(++bn); br[bid]={id:bid, locked:false, parentTb:id, children:[]}; tb[id].brace=bid;
+      node.children.forEach(ch=>{ const cid=walk(ch,false); tb[cid].parentBrace=bid; br[bid].children.push(cid); });
+    }
+    return id;
+  };
+  const roots=[]; (tree.length?tree:[{text:name||'中心主题',children:[]}]).forEach(r=>roots.push(walk(r,true)));
+  return {name:name||('AI 导图 '+(sheets.length+1)), docType:'brace', idc:Math.max(n,bn)+1, focusId:null, roots,
+    textboxes:tb, braces:br, rbraces:{}, fgroups:{}, links:{}, boundaries:{}, summaries:{}, callouts:{}, relations:{},
+    customMarkers:[], legend:{on:false,x:null,y:null,texts:{}}, view:{numbering}};
+}
+// 当前文档是否只是"空占位"（可安全替换而非新增一张空画布）
+// 是否"真的空"（一个文本框都没有）——只有这种占位画布才允许被替换；有任何内容都只新增、绝不覆盖删除
+function aiDocTrivial(){ try{ syncActiveSheet(); }catch(e){}
+  return sheets.length<=1 && Object.keys((sheets[0]&&sheets[0].textboxes)||{}).length===0; }
+// 生成一张或多张画布（多页导图）。items:[{tree,struct,name}]
+function aiGenerateSheets(items){
+  items=(items||[]).filter(it=>it.tree && it.tree.length); if(!items.length) return;
+  cancelAddAnchor(); cancelAddLinkNode(); if(typeof closeTaskPanel==='function') closeTaskPanel(false);
+  syncActiveSheet(); olCollapsed.clear();
+  let firstIdx=-1;
+  items.forEach((it,i)=>{
+    const d=aiBuildSheet(it.tree, it.struct, it.name);
+    if(i===0 && aiDocTrivial()){ sheets=[d]; curSheet=0; curPath=null; curName=d.name; firstIdx=0; }
+    else { sheets.push(d); curSheet=sheets.length-1; if(i===0) firstIdx=curSheet; }
+  });
+  dirty=true; curSheet=(firstIdx>=0?firstIdx:sheets.length-1);
+  hydrate(sheets[curSheet]); scale=1;
+  const rid=sheets[curSheet].roots[0]; if(rid&&TB[rid]) selectTb(rid);
+  centerContent(); renderSheetTabs(); refreshFileLabel(); initHistory(); markDirty();
+  hideStart(); closeAIChat();
+}
+function aiGenerateToCanvas(tree, structCode, name){ aiGenerateSheets([{tree, struct:structCode, name}]); }
+// ---- 读取当前画布 → Markdown（喂给 AI，让它在你已有的导图上改） ----
+function aiOutlinePrefix(depth){ return depth<=2 ? ('#'.repeat(depth+1)+' ') : ('  '.repeat(depth-3)+'- '); }
+function currentSheetOutline(){
+  const lines=[];
+  if(docType==='spider'){ for(const id in TB){ const tb=TB[id]; if(tb&&!tb._ghost){ const x=(tb.text||'').replace(/\s+/g,' ').trim(); if(x) lines.push('- '+x); } } return lines.join('\n'); }
+  const walk=(id,depth)=>{ const tb=TB[id]; if(!tb||tb._ghost) return;
+    const x=(tb.text||'').replace(/\s+/g,' ').trim(); lines.push(aiOutlinePrefix(depth)+(x||'(空)'));
+    const b=tb.brace?BR[tb.brace]:null; if(b) b.children.forEach(c=>walk(c,depth+1)); };
+  roots.forEach(r=>walk(r,0)); return lines.join('\n');
+}
+function currentSheetNonEmpty(){ return roots.some(id=>{ const t=TB[id]; return t && (t.text||'').trim(); }) || Object.keys(TB).length>1; }
+// 用新树替换"当前活动画布"的内容（保留画布名/标签），就地修改而非新建
+function aiApplyToCurrentSheet(tree, structCode){
+  const d=aiBuildSheet(tree, structCode, curSheetName); d.name=curSheetName;
+  cancelAddAnchor(); cancelAddLinkNode(); if(typeof closeTaskPanel==='function') closeTaskPanel(false);
+  olCollapsed.clear(); syncActiveSheet(); sheets[curSheet]=d; dirty=true;
+  hydrate(d); scale=1; const rid=d.roots[0]; if(rid&&TB[rid]) selectTb(rid);
+  centerContent(); renderSheetTabs(); refreshFileLabel(); initHistory(); markDirty();
+  hideStart(); closeAIChat();
+}
+// 卡片确认后落地：编辑模式=就地改当前页；新建模式=生成新画布（多页则多张）
+function aiApplyItems(items){
+  items=(items||[]).filter(it=>it.tree && it.tree.length); if(!items.length) return;
+  if(aiEditMode==='edit') aiApplyToCurrentSheet(items[0].tree, items[0].struct);
+  else aiGenerateSheets(items);
+}
+
+// ---- AI 配置（localStorage + 桌面版落 userData/ai-config.json，同 UI 皮肤持久化） ----
+function aiCfgGet(){ try{ return JSON.parse(localStorage.getItem('bmap.ai')||'{}'); }catch(e){ return {}; } }
+function aiCfgSet(o){ try{ localStorage.setItem('bmap.ai', JSON.stringify(o)); }catch(e){}
+  if(window.api && window.api.saveAIConf){ try{ window.api.saveAIConf(JSON.stringify(o)); }catch(e){} } }
+function aiConfigured(){ const c=aiCfgGet(); return !!(c.baseUrl && c.model); }
+(async function aiRestoreConf(){ try{
+  if(!(window.api && window.api.loadAIConf)) return;
+  if(localStorage.getItem('bmap.ai')) return;               // localStorage 有就以它为准
+  const txt=await window.api.loadAIConf(); if(txt){ localStorage.setItem('bmap.ai', txt); renderAIModelBar(); }
+}catch(e){} })();
+
+const AI_PRESETS={
+  ollama:   {baseUrl:'http://localhost:11434/v1', model:'qwen2.5:7b',  key:false},
+  lmstudio: {baseUrl:'http://localhost:1234/v1',  model:'',            key:false},
+  deepseek: {baseUrl:'https://api.deepseek.com/v1', model:'deepseek-chat', key:true},
+  openai:   {baseUrl:'https://api.openai.com/v1', model:'gpt-4o-mini', key:true},
+  siliconflow:{baseUrl:'https://api.siliconflow.cn/v1', model:'Qwen/Qwen2.5-7B-Instruct', key:true},
+};
+
+// ---- OpenAI 兼容接口：流式聊天（Ollama / LM Studio / llama.cpp / DeepSeek / OpenAI 等通用） ----
+// SSE 逐块解析（OpenAI 流式 data: {...} 行 → 累加 delta.content；末块的 usage → token 计量）
+function aiFeedSSE(st, chunkStr, onDelta){
+  st.buf+=chunkStr; let nl;
+  while((nl=st.buf.indexOf('\n'))>=0){ let line=st.buf.slice(0,nl); st.buf=st.buf.slice(nl+1); line=line.trim();
+    if(!line || line.startsWith(':') || !line.startsWith('data:')) continue;
+    const data=line.slice(5).trim(); if(data==='[DONE]'){ st.buf=''; break; }
+    try{ const j=JSON.parse(data); if(j && j.usage) aiMeter.usage=j.usage;
+      const delta=((((j.choices||[])[0]||{}).delta)||{}).content||''; if(delta){ st.full+=delta; onDelta&&onDelta(delta); } }catch(e){}
+  }
+}
+// 当前进行中的请求（供关闭/停止时中断）
+let aiActive=null;                       // {reqId, abort:fn}
+function aiAbortCurrent(){ if(aiActive){ try{ aiActive.abort(); }catch(e){} aiActive=null; } }
+const aiIPCHandlers={};                   // reqId → {raw,end,error}
+if(isDesktop && window.api.aiStream){
+  window.api.aiStream.onRaw(d=>{ const h=aiIPCHandlers[d.reqId]; if(h) h.raw(d.chunk); });
+  window.api.aiStream.onEnd(d=>{ const h=aiIPCHandlers[d.reqId]; if(h) h.end(); });
+  window.api.aiStream.onError(d=>{ const h=aiIPCHandlers[d.reqId]; if(h) h.error(d.message); });
+}
+function aiBuildReq(messages, minimal){
+  const cfg=aiCfgGet();
+  const base=(cfg.baseUrl||'').trim().replace(/\/+$/,'');
+  if(!base) throw new Error(t('尚未配置 AI 模型'));
+  const headers={'Content-Type':'application/json'};
+  if(cfg.apiKey) headers['Authorization']='Bearer '+cfg.apiKey;
+  const payload={model:cfg.model||'', messages, stream:true};
+  // 不默认发 temperature：新版 OpenAI（GPT-5/o 系列）会拒绝非默认温度。也不发 max_tokens（这些模型改叫 max_completion_tokens）。
+  // stream_options.include_usage 让服务在流式末尾回传 token 用量；minimal=true 时连它也去掉（个别服务不认时重试用）。
+  if(!minimal) payload.stream_options={include_usage:true};
+  return {url:base+'/chat/completions', headers, body:JSON.stringify(payload)};
+}
+// 判断是否"参数不被模型支持"类错误 → 值得去掉可选参数重试一次
+function aiParamError(err){ return /unsupported parameter|not supported with this model|unrecognized (request )?argument|stream_options|max_tokens|temperature|extra fields/i.test((err&&err.message)||''); }
+// 把 HTTP 错误翻成人话提示
+function aiErrHint(msg){ msg=''+(msg||''); const m=/\b(400|401|403|404|429|500|502|503)\b/.exec(msg); const code=m?+m[1]:0;
+  if(code===401||code===403) return t('Key 无效或无权限');
+  if(code===429) return /quota|billing|insufficient|exceeded/i.test(msg) ? t('账号额度/余额不足，去服务商充值，或改用免费的本地模型') : t('请求太频繁，稍后再试');
+  if(code===404) return t('地址或模型名不对，检查 Base URL 与模型名');
+  if(code===400) return /model/i.test(msg) && !/parameter/i.test(msg) ? t('模型名可能不对') : t('该模型不支持某个请求参数');
+  if(code>=500) return t('服务端出错，稍后再试');
+  return ''; }
+// ---- token 计量（速度 tok/s + 本次 + 累计） ----
+let aiSessionTokens=0;
+const aiMeter={t0:0,tFirst:0,text:'',usage:null,running:false,timer:null};
+function aiEstTokens(s){ if(!s) return 0;                 // 粗略估计：中日韩字≈0.6 token，其余≈1 token/4 字符
+  const cjk=(s.match(/[㐀-鿿豈-﫿぀-ヿ가-힯]/g)||[]).length;
+  return Math.round(cjk*0.6 + (s.length-cjk)/4); }
+function aiMeterCompTokens(){ return aiMeter.usage ? (aiMeter.usage.completion_tokens||aiEstTokens(aiMeter.text)) : aiEstTokens(aiMeter.text); }
+function aiMeterReqTotal(){ return aiMeter.usage ? (aiMeter.usage.total_tokens||aiMeterCompTokens()) : aiMeterCompTokens(); }
+function aiMeterStart(){ aiMeter.t0=performance.now(); aiMeter.tFirst=0; aiMeter.text=''; aiMeter.usage=null; aiMeter.running=true;
+  if(aiMeter.timer) clearInterval(aiMeter.timer); aiMeter.timer=setInterval(aiMeterRender,300); aiMeterRender(); }
+function aiMeterTick(d){ if(!aiMeter.tFirst) aiMeter.tFirst=performance.now(); aiMeter.text+=d; }
+function aiMeterFinish(){ if(aiMeter.timer){ clearInterval(aiMeter.timer); aiMeter.timer=null; }
+  aiSessionTokens += aiMeterReqTotal(); aiMeter.running=false; aiMeterRender(); }
+function aiMeterRender(){
+  const el=document.getElementById('aiMeter'); if(!el) return;
+  const comp=aiMeterCompTokens();
+  const secs=aiMeter.tFirst? (performance.now()-aiMeter.tFirst)/1000 : 0;
+  const speed=secs>0.3 ? comp/secs : 0;
+  const approx=aiMeter.usage? '' : '≈';
+  const cum=aiSessionTokens + (aiMeter.running? aiMeterReqTotal() : 0);
+  el.classList.add('on'); el.classList.toggle('done', !aiMeter.running);
+  const lead = aiMeter.running
+    ? `⚡ <b>${speed?speed.toFixed(1):'—'}</b> tok/s`     // 运行中：显示实时速度
+    : `✓ ${escH(t('已完成'))}`;                           // 完成：不再显示速度，避免误以为还在跑
+  el.innerHTML=`${lead} <span class="amdot">·</span> ${escH(t('本次'))} <b>${comp}${approx}</b> <span class="amdot">·</span> ${escH(t('累计'))} <b>${cum}${approx}</b>`;
+}
+// 桌面版：请求走主进程（Node，无 CORS，可直连本地/云）；浏览器版：直接 fetch（会受 CORS 限制）
+async function aiChatStream(messages, onDelta){
+  aiMeterStart();
+  const wrapped=d=>{ aiMeterTick(d); onDelta&&onDelta(d); };
+  const run=req=> (isDesktop && window.api.aiStream) ? aiChatStreamIPC(req, wrapped) : aiChatStreamFetch(req, wrapped);
+  try{
+    try{ return await run(aiBuildReq(messages,false)); }
+    catch(err){ if(aiParamError(err)){ aiMeter.text=''; aiMeter.usage=null; aiMeter.tFirst=0; return await run(aiBuildReq(messages,true)); } throw err; }
+  } finally { aiMeterFinish(); }
+}
+function aiChatStreamIPC(req, onDelta){
+  return new Promise((resolve,reject)=>{
+    const reqId='r'+Date.now()+'_'+Math.floor(Math.random()*1e6);
+    const st={buf:'',full:''};
+    aiIPCHandlers[reqId]={
+      raw:chunk=>aiFeedSSE(st, chunk, onDelta),
+      end:()=>{ delete aiIPCHandlers[reqId]; if(aiActive&&aiActive.reqId===reqId) aiActive=null; resolve(st.full); },
+      error:msg=>{ delete aiIPCHandlers[reqId]; if(aiActive&&aiActive.reqId===reqId) aiActive=null; reject(new Error(msg||'error')); }
+    };
+    aiActive={reqId, abort:()=>{ try{ window.api.aiStream.abort(reqId); }catch(e){}
+      if(aiIPCHandlers[reqId]){ delete aiIPCHandlers[reqId]; const er=new Error('aborted'); er.name='AbortError'; reject(er); } }};
+    try{ window.api.aiStream.start({reqId, url:req.url, headers:req.headers, body:req.body}); }
+    catch(e){ delete aiIPCHandlers[reqId]; reject(e); }
+  });
+}
+async function aiChatStreamFetch(req, onDelta){
+  const controller=new AbortController();
+  aiActive={reqId:null, abort:()=>controller.abort()};
+  let res;
+  try{ res=await fetch(req.url, {method:'POST', headers:req.headers, body:req.body, signal:controller.signal}); }
+  catch(err){ if(err&&err.name==='AbortError') throw err;
+    throw new Error(t('连不上（浏览器 CORS 或地址错误）：')+((err&&err.message)||err)); }   // 浏览器直连本地/云常被 CORS 拦
+  if(!res.ok){ let b=''; try{ b=await res.text(); }catch(e){} throw new Error('HTTP '+res.status+(b?(' · '+b.slice(0,200)):'')); }
+  if(!res.body || !res.body.getReader){ const j=await res.json(); const c=(((j.choices||[])[0]||{}).message||{}).content||''; onDelta&&onDelta(c); return c; }
+  const reader=res.body.getReader(); const dec=new TextDecoder(); const st={buf:'',full:''};
+  for(;;){ const {done,value}=await reader.read(); if(done) break; aiFeedSSE(st, dec.decode(value,{stream:true}), onDelta); }
+  return st.full;
+}
+
+function aiSystemPrompt(){
+  const names=AI_STRUCTS.map(s=>s.zh).join(' / ');
+  if(LANG==='en') return (
+`You are the mindmap assistant inside ThoughtCanvas. Work in TWO stages — never skip to the full mindmap on the first reply, because generating full detail is expensive and wasteful if the plan is wrong.
+
+STAGE 1 — PLAN (for EVERY request that creates OR changes/refines a map — a new topic, or "more detail", "add examples", "redo bigger", "expand each branch", etc.): reply with one short sentence, then a machine block giving only a ROUGH outline: the center topic + the main branches (top level only, at most a one-line hint each — do NOT list every leaf point yet). ALWAYS include a recommended structure. Format EXACTLY (no code fences):
+<plan struct="Timeline">
+# Central topic
+## First main branch
+## Second main branch
+## Third main branch
+</plan>
+
+STAGE 2 — EXPAND (ONLY when the user's latest message is an explicit confirmation to expand a plan — e.g. it literally says "确认方案" / "confirm the plan" / "expand it into the full mindmap"): output the FULL detailed map with all levels, in this block:
+<mindmap struct="Timeline">
+# Central topic
+## First branch
+- detail
+- detail
+## Second branch
+- detail
+</mindmap>
+
+MULTI-PAGE: if the user wants multiple pages/sheets (e.g. "one overview page, then one page per category"), output SEVERAL <mindmap> blocks in Stage 2 — one per page — each with a title attribute for the sheet name, like:
+<mindmap struct="Brace" title="Overview">
+# English grammar
+## Nouns
+## Verbs
+</mindmap>
+<mindmap struct="Brace" title="Nouns">
+# Nouns
+## Definition
+- ...
+## Examples
+- ...
+</mindmap>
+Otherwise output a single <mindmap> block.
+
+Rules:
+- "struct" MUST be one of: Brace / Logic / Org chart / Tree / Timeline / Fishbone / Matrix / Tree table. Recommend the best fit (time order→Timeline, cause analysis→Fishbone, comparison→Matrix, hierarchy→Org chart, general breakdown→Brace/Logic).
+- Use Markdown "#" headings and "-" bullets. One single "#" is the center topic of each block. Stage 2 map = 2-4 levels, concise, information-dense.
+- In STAGE 1 output ONLY a <plan> block (no <mindmap>). In STAGE 2 output ONLY <mindmap> block(s). Any message that is NOT an explicit confirmation is STAGE 1 → give a <plan>, never a <mindmap>.
+- CRITICAL: the real outline MUST be INSIDE the <mindmap> block. NEVER output an empty <mindmap></mindmap>, never put the map only in your thinking, never use "---" separators or code fences, and never place the outline outside the block. If you have content to show, it goes inside the block.
+- If a 【当前画布内容】 block is provided, the user wants to EDIT their existing map: base your plan/map on it, you MAY add, remove or change nodes, keep the parts they didn't ask to change, and output only ONE updated <mindmap> (this single page).
+- If a 【参考：用户当前已有的导图】 block is provided, it is REFERENCE ONLY: the user wants a NEW map. Do NOT modify or delete that reference; create a fresh map instead.
+- If the user's input is empty, just a number/symbol (like "1"), or too vague to tell the topic, do NOT invent — ask in one sentence what topic they want, and output no block this turn.
+- Reply in the user's language. Keep chatter minimal.`);
+  return (
+`你是 ThoughtCanvas 里的思维导图助手。分两步走——第一次回复绝不要直接给完整导图，因为详细生成很费算力，方案错了就白费了。
+
+第一步 · 方案（**凡是要做或修改导图的请求都走这步**——新主题、"更详细"、"多举例子"、"重做更全"、"每个分支展开"等等都算）：只回一句话，再给一个机器块，块里只写「粗方案」——中心主题 + 主要分支（只到一级，每个最多带一句提示，先别把每个末端要点都列出来）。**必须给出推荐结构。** 严格用如下格式（不要套代码围栏）：
+<plan struct="时间轴">
+# 中心主题
+## 一级分支一
+## 一级分支二
+## 一级分支三
+</plan>
+
+第二步 · 展开（**只有当用户这一条消息是明确的"确认展开"时**——比如原话包含「确认方案」「把它展开成完整详细的导图」——才走这步）：输出带所有层级的完整详图，用这个块：
+<mindmap struct="时间轴">
+# 中心主题
+## 一级分支
+- 要点
+- 要点
+## 一级分支
+- 要点
+</mindmap>
+
+多页：如果用户要「多页/多张」（例如"第一页总分类，后面每页一个分类"），第二步就输出**多个 <mindmap> 块**，一页一个，每个用 title 属性作为该页画布名，例如：
+<mindmap struct="大括号" title="语法总览">
+# 英语语法
+## 名词
+## 动词
+</mindmap>
+<mindmap struct="大括号" title="名词">
+# 名词
+## 定义
+- ...
+## 例句
+- ...
+</mindmap>
+否则只输出一个 <mindmap> 块。
+
+规则：
+- struct 必须是以下之一：${names}。推荐最贴合主题的（时间顺序→时间轴，因果分析→鱼骨图，对比→矩阵，层级隶属→组织结构图，一般拆解→大括号/逻辑图）。
+- 用 Markdown 的 # 标题和 - 列表；每个块用一个「#」作中心主题；第二步的完整图控制在 2-4 层，简洁、信息密度高。
+- **第一步只输出 <plan> 块（不要给 <mindmap>）；第二步只输出 <mindmap> 块。凡不是"确认展开"的消息都属第一步 → 给 <plan>，绝不给 <mindmap>。**
+- **最关键：真正的大纲内容必须写在 <mindmap> 块里面。绝不能输出空的 <mindmap></mindmap>，绝不能把导图只留在思考里，绝不能用「---」分隔线或代码围栏，绝不能把大纲写在块外面。有内容就写进块里。**
+- 若提供了【当前画布内容】，说明用户要修改已有导图：以它为基础，可以增加、删除、修改节点，没提到的部分保留，只输出**一张**改好后的完整 <mindmap>（就这一页）。
+- 若提供了【参考：用户当前已有的导图】，那只是参考，用户要的是一张新导图：不要修改或删除参考内容，请另外新建一张。
+- 若用户输入为空、只是一个数字或符号（如「1」）、或含糊到看不出主题，绝不要自己编——用一句话反问他想做哪个主题，这一轮不输出任何块。
+- 用用户所用的语言回复，废话尽量少。`);
+}
+
+// 去掉推理模型（如 DeepSeek-R1）的 <think>…</think> 思考块
+function aiStripThink(text){ return (text||'').replace(/<think>[\s\S]*?<\/think>/gi,''); }
+// 通用：抽取 <tag struct="…">…</tag>。先在"正文"(去思考)里找;找不到再连思考块一起找
+//（推理模型如 gpt-5.5/R1 有时把 plan/mindmap 写在了 <think> 里）
+function aiExtractTag(text, tag){
+  const rx=()=>new RegExp('<'+tag+'([^>]*)>([\\s\\S]*?)<\\/'+tag+'>','i');
+  let m=rx().exec(aiStripThink(text)); if(!m) m=rx().exec(text||'');
+  if(!m) return null;
+  const sm=/struct\s*=\s*["']?([^"'>\s]+)/i.exec(m[1]||'');
+  return {struct:aiNormalizeStruct(sm?sm[1]:''), outline:m[2].trim(), raw:m[0]};
+}
+function aiExtractPlan(text){ return aiExtractTag(text,'plan'); }        // 阶段一：粗方案
+function aiExtractMindmap(text){ return aiExtractTag(text,'mindmap'); }  // 阶段二：完整导图（单张）
+// 阶段二可含多张 <mindmap title="页名">（多页导图）→ 全抽出来，每张一画布。正文找不到就连思考块一起找
+function aiExtractAllMindmaps(text){
+  const scan=src=>{ const out=[]; let m; const re=/<mindmap([^>]*)>([\s\S]*?)<\/mindmap>/gi;
+    while((m=re.exec(src))){ const sm=/struct\s*=\s*["']?([^"'>\s]+)/i.exec(m[1]||''); const tm=/title\s*=\s*["']([^"']*)["']/i.exec(m[1]||'');
+      out.push({struct:aiNormalizeStruct(sm?sm[1]:''), title:tm?tm[1].trim():'', outline:m[2].trim()}); }
+    return out; };
+  let arr=scan(aiStripThink(text)); if(!arr.length) arr=scan(text||''); return arr;
+}
+// 兜底：模型忘了套 <mindmap> 标签时，从正文里揪出 Markdown 大纲（第一处标题/列表起）
+function aiLooseOutlineText(text){
+  const s=aiStripBlock(text); const lines=s.split('\n'); let start=-1;
+  for(let i=0;i<lines.length;i++){ if(/^\s*(#{1,6}\s|[-*+]\s|\d+[.)]\s)/.test(lines[i])){ start=i; break; } }
+  return start<0 ? '' : lines.slice(start).join('\n');
+}
+// 从模型整段回复里收出可用的导图（多张 <mindmap> 优先；没有就兜底揪正文大纲；再没有就连思考块里也捞）→ [{tree,struct,name}]
+function aiHarvest(full, forceStruct){
+  let items=aiExtractAllMindmaps(full).map(mm=>({tree:aiParseOutline(mm.outline), struct:forceStruct||mm.struct, name:mm.title})).filter(it=>it.tree.length);
+  if(!items.length){ const body=aiLooseOutlineText(full);
+    if(body){ const tree=aiParseOutline(body); if(tree.length) items=[{tree, struct:forceStruct||aiNormalizeStruct(''), name:''}]; } }
+  if(!items.length){                     // 最后兜底：推理模型有时把 <mindmap> 留在了 <think> 里 → 连思考块一起捞
+    const out=[]; let m; const re=/<mindmap([^>]*)>([\s\S]*?)<\/mindmap>/gi;
+    while((m=re.exec(full||''))){ const sm=/struct\s*=\s*["']?([^"'>\s]+)/i.exec(m[1]||''); const tm=/title\s*=\s*["']([^"']*)["']/i.exec(m[1]||'');
+      const tree=aiParseOutline(m[2].trim()); if(tree.length) out.push({tree, struct:forceStruct||aiNormalizeStruct(sm?sm[1]:''), name:tm?tm[1].trim():''}); }
+    if(out.length) items=out;
+  }
+  items.forEach((it,i)=>{ if(!it.name) it.name=(it.tree[0]&&it.tree[0].text)||(t('AI 导图')+(items.length>1?(' '+(i+1)):'')); });
+  return items;
+}
+// 发给模型的历史里：去掉思考、把"较早的"完整导图压成占位（省 token、别让一堆旧图把模型带偏；最新一份保留完整供细化）
+function aiCompactAssistant(c){
+  const s=aiStripThink(c).replace(/<plan[^>]*>[\s\S]*?<\/plan>/gi,'[方案]').replace(/<mindmap[^>]*>[\s\S]*?<\/mindmap>/gi,'[已生成导图]').trim();
+  return s||'[已生成导图]';
+}
+function aiTrimmedHistory(){
+  let last=-1; for(let i=aiHistory.length-1;i>=0;i--){ if(aiHistory[i].role==='assistant'){ last=i; break; } }
+  return aiHistory.map((m,i)=> (m.role==='assistant' && i!==last) ? {role:'assistant', content:aiCompactAssistant(m.content)} : m);
+}
+// 展示用：去掉思考块 + 机器块（plan/mindmap）后的对话正文（流式时也把未闭合的起始处截掉）
+function aiStripBlock(text){
+  let s=aiStripThink(text||'');
+  s=s.replace(/<think>[\s\S]*$/i,'');                                    // 流式中尚未闭合的 think → 整段先隐藏
+  s=s.replace(/<(plan|mindmap)[^>]*>[\s\S]*?<\/\1>/gi,'');
+  const open=s.search(/<(plan|mindmap)[^>]*>?/i); if(open>=0) s=s.slice(0,open);
+  return s.trim();
+}
+
+// ---- 对话状态 ----
+let aiHistory=[];              // 发给模型的消息（不含 system）
+let aiBusy=false;
+let aiMode='new';              // 'new'=开始页入口 | 'assist'=编辑器入口
+let aiEditMode='new';          // 'edit'=在当前画布上改（读取+就地更新，省 token）| 'new'=生成新导图
+const aiMask=document.getElementById('aiMask');
+const aiBodyEl=document.getElementById('aiBody');
+const aiInputEl=document.getElementById('aiInput');
+const aiSendBtn=document.getElementById('aiSend');
+
+// 当前画布是否至少有一个真实文本框（哪怕是空的）——决定"改当前画布"选项是否可用
+function aiCanEditCanvas(){ for(const id in TB){ if(TB[id] && !TB[id]._ghost) return true; } return false; }
+function aiSetScope(mode){
+  if(mode==='edit' && !aiCanEditCanvas()) mode='new';        // 没东西可改 → 强制新建
+  aiEditMode=(mode==='edit')?'edit':'new';
+  document.querySelectorAll('#aiScope .asc').forEach(c=>c.classList.toggle('on', c.dataset.scope===aiEditMode));
+  const ph=aiEditMode==='edit' ? t('说说要怎么改这张画布，例如：给"名词"加两个例句') : t('描述你想要的导图，例如：做一个关于英语现在进行时语法的导图');
+  if(aiInputEl) aiInputEl.setAttribute('placeholder', ph); }
+function openAIChat(mode){
+  aiMode=mode||'new';
+  // 画布上一个文本框都没有 → 隐藏整个切换条（不显示"改当前画布"）；有内容才显示
+  const canEdit=aiCanEditCanvas();
+  const scopeBar=document.getElementById('aiScope'); if(scopeBar) scopeBar.style.display=canEdit?'flex':'none';
+  // 从编辑器进 + 当前画布有实质内容 → 默认"改当前画布"；否则"新建"
+  aiSetScope((aiMode==='assist' && canEdit && currentSheetNonEmpty()) ? 'edit' : 'new');
+  document.getElementById('aiTitle').textContent = t(aiMode==='assist'?'AI 助手':'AI 生成导图');
+  document.getElementById('aiSubtitle').textContent = t('先出方案 · 你确认 · 再绘图');
+  aiCloseCfg();
+  aiMask.classList.add('open');
+  aiSetMenuBadge(false);                              // 打开即清掉"后台已生成"红点
+  aiSetSending(aiBusy);                               // 若后台还在算，进来就显示"停止"
+  renderAIModelBar();
+  if(!aiBodyEl.childElementCount) aiRebuildChat();   // 空 → 恢复随文件保存的对话（无则问候语）
+  setTimeout(()=>{ aiInputEl.focus(); aiBodyEl.scrollTop=aiBodyEl.scrollHeight; },30);
+}
+document.querySelectorAll('#aiScope .asc').forEach(c=> c.addEventListener('click',()=>aiSetScope(c.dataset.scope)));
+// 关闭只是隐藏面板：正在算的请求继续在后台跑（DOM 照常更新，重开即见结果）。要停用"停止"按钮。
+function closeAIChat(){ aiMask.classList.remove('open'); }
+function aiSetSending(on){ if(!aiSendBtn) return;
+  aiSendBtn.classList.toggle('stopping', on); aiSendBtn.innerHTML = on?'■':'➤';
+  aiSendBtn.title = t(on?'停止':'发送 (Enter)'); }
+function aiSetMenuBadge(on){ const b=document.getElementById('aiMenuBtn'); if(b) b.classList.toggle('has-done', on); }
+// ---- 随文件保存/恢复 AI 对话记录 ----
+function aiChatForSave(){ return (aiHistory||[]).map(m=>({role:m.role, content:m.content})); }   // 只存 role/content（不存 _drawn 等本地态）
+function aiLoadChat(chat){                                  // 载入文件时调用：替换对话、清空界面（下次打开重建）
+  aiHistory = Array.isArray(chat) ? chat.map(m=>({role:m.role, content:m.content})) : [];
+  // 文件里的导图早已在各画布中 → 把含 <mindmap> 的消息标记为"已落画布"，重开时只显示提示、不再重复问确认（末尾若是待确认的方案除外）
+  aiHistory.forEach(m=>{ if(m.role==='assistant' && /<mindmap/i.test(m.content||'')) m._drawn=true; });
+  const b=document.getElementById('aiBody'); if(b) b.innerHTML='';
+  aiSessionTokens=0; const mtr=document.getElementById('aiMeter'); if(mtr) mtr.classList.remove('on');
+  if(aiMask && aiMask.classList.contains('open')) aiRebuildChat();
+}
+// 把 aiHistory 重画成气泡；末尾若有"待确认"的方案/完整图，重新给出可点的确认卡（修复重开后看不到确认界面）
+function aiRebuildChat(){
+  aiBodyEl.innerHTML=''; aiSessionTokens=0;
+  const mtr=document.getElementById('aiMeter'); if(mtr) mtr.classList.remove('on');
+  if(!aiHistory.length){ aiGreet(); return; }
+  aiAppendMsg('sys', t('已载入这张导图的 AI 对话记录，可继续对话。'));
+  let lastA=-1; for(let i=aiHistory.length-1;i>=0;i--){ if(aiHistory[i].role==='assistant'){ lastA=i; break; } }
+  aiHistory.forEach((m,i)=>{
+    if(m.role==='user'){ aiAppendMsg('user', m.content); return; }
+    const txt=aiStripBlock(m.content);
+    const pl=aiExtractPlan(m.content), items=aiHarvest(m.content);
+    if(i===lastA && !m._drawn && pl && pl.outline){           // 待确认的方案 → 恢复方案卡
+      aiAppendMsg('bot', txt||t('已为你准备好一个方案：')); aiRenderPlanCard(pl, m);
+    } else if(i===lastA && !m._drawn && items.length){        // 待确认的完整图 → 恢复生成卡
+      aiAppendMsg('bot', txt||t('导图已就绪，待确认：')); aiRenderGenCard(items, m.content, m);
+    } else if(pl || items.length){                            // 早先已处理过 → 只显示提示
+      aiAppendMsg('bot', txt||t('（已生成导图 · 见画布）'));
+    } else {
+      aiAppendMsg('bot', txt||t('（已生成导图）'));
+    }
+  });
+}
+function aiGreet(){
+  const tips = !aiConfigured()
+    ? t('先点右上角 ⚙ 接入你的本地模型或 API Key，就能开始了。')
+    : (aiEditMode==='edit'
+      ? t('我已能读取你当前这张画布，会在它基础上帮你改（只改这一页，省 token）。说说要怎么改；想做全新的就点上面「新建导图」。')
+      : t('描述你想要的导图，我会先给出「内容 + 结构」方案，你确认后再绘制。'));
+  aiAppendMsg('sys', tips);
+}
+function aiAppendMsg(role, text){
+  const wrap=document.createElement('div'); wrap.className='ai-msg '+role;
+  const b=document.createElement('div'); b.className='ai-bubble'; b.textContent=text;
+  wrap.appendChild(b); aiBodyEl.appendChild(wrap); aiBodyEl.scrollTop=aiBodyEl.scrollHeight;
+  return {wrap, bubble:b};
+}
+// 阶段一：方案卡片（粗略大纲 + 推荐结构；点确认才进入阶段二详细展开）。msg=对应的历史消息（点确认后标记，避免重开时重复问）
+function aiRenderPlanCard(plan, msg){
+  const card=document.createElement('div'); card.className='ai-plan';
+  const opts=AI_STRUCTS.map(s=>`<option value="${s.code}"${s.code===plan.struct?' selected':''}>${escH(aiStructLabel(s.code))}</option>`).join('');
+  card.innerHTML=`<div class="apl-h">🗂 ${escH(t('方案（推荐结构如下，确认后再详细生成）'))}</div>`
+    +`<div class="apl-outline"></div>`
+    +`<div class="apl-foot"><label>${escH(t('推荐结构'))}</label><select class="apl-struct">${opts}</select>`
+    +`<button class="apl-gen">${escH(t('确认方案 · 生成导图'))}</button></div>`;
+  card.querySelector('.apl-outline').textContent=plan.outline;
+  const sel=card.querySelector('.apl-struct'), gen=card.querySelector('.apl-gen');
+  gen.addEventListener('click',()=>{
+    if(card.classList.contains('done')||aiBusy) return;
+    card.classList.add('done'); gen.textContent=t('生成中…');
+    if(msg) msg._drawn=true;
+    aiConfirmPlan(sel.value);
+  });
+  aiBodyEl.appendChild(card); aiBodyEl.scrollTop=aiBodyEl.scrollHeight;
+}
+// 预览文本：把消息里的导图大纲拼出来给人看
+function aiPreviewText(content){
+  const maps=aiExtractAllMindmaps(content);
+  if(maps.length) return maps.map(m=>(m.title?('【'+m.title+'】\n'):'')+m.outline).join('\n\n');
+  return aiLooseOutlineText(content);
+}
+// 完整导图确认卡：预览 + 「生成到画布」（细化/直接给图/重开恢复都走这个，确认后才落画布）
+function aiRenderGenCard(items, content, msg){
+  if(!items || !items.length) return;
+  const multi=items.length>1;
+  const card=document.createElement('div'); card.className='ai-plan';
+  const opts=AI_STRUCTS.map(s=>`<option value="${s.code}"${s.code===items[0].struct?' selected':''}>${escH(aiStructLabel(s.code))}</option>`).join('');
+  card.innerHTML=`<div class="apl-h">🗂 ${escH(t(multi?'完整导图（多页，确认后落到画布）':'完整导图（可改结构，确认后落到画布）'))}</div>`
+    +`<div class="apl-outline"></div>`
+    +`<div class="apl-foot">`
+    +(multi ? `<span style="font-size:12px;color:var(--muted)">${items.length} ${escH(t('页'))}</span>`
+            : `<label>${escH(t('结构'))}</label><select class="apl-struct">${opts}</select>`)
+    +`<button class="apl-gen">${escH(t(aiEditMode==='edit'?'更新当前画布':'生成到画布'))}</button></div>`;
+  card.querySelector('.apl-outline').textContent=aiPreviewText(content)||'';
+  const sel=card.querySelector('.apl-struct'), gen=card.querySelector('.apl-gen');
+  gen.addEventListener('click',()=>{
+    if(card.classList.contains('done')) return;
+    if(sel) items.forEach(it=>it.struct=sel.value);   // 单图允许临时改结构
+    aiApplyItems(items);                               // 编辑模式=就地改当前页；新建=生成新画布
+    if(msg) msg._drawn=true;
+    card.classList.add('done'); gen.textContent=t(aiEditMode==='edit'?'已更新 ✓':'已生成 ✓');
+  });
+  aiBodyEl.appendChild(card); aiBodyEl.scrollTop=aiBodyEl.scrollHeight;
+}
+// 阶段二：用户确认方案后，才让模型把它展开成完整详图并直接落画布
+async function aiConfirmPlan(chosenStruct){
+  const s=AI_STRUCTS.find(x=>x.code===chosenStruct); const label=s?(LANG==='en'?s.en:s.zh):chosenStruct;
+  aiInputEl.value = t('确认方案，用「')+label+t('」结构，把它展开成完整详细的导图。')+t('（若我要求过多页，就每页一个 <mindmap title="页名"> 块）');
+  await aiSendReal({autoGen:true, struct:chosenStruct});
+}
+async function aiSendReal(opts){
+  opts=opts||{};
+  if(aiBusy) return;
+  const text=aiInputEl.value.trim(); if(!text) return;
+  if(!aiConfigured()){ aiOpenCfg(); return; }
+  aiInputEl.value=''; aiInputEl.style.height='auto';
+  aiAppendMsg('user', text);
+  aiHistory.push({role:'user', content:text});
+  aiBusy=true; aiSetSending(true);                 // 发送按钮变"停止"（关面板不会中断，只有点它才停）
+  const bot=aiAppendMsg('bot',''); bot.bubble.innerHTML='<span class="ai-typing">'+escH(t(opts.autoGen?'生成导图中…':'思考中…'))+'</span>';
+  let acc='';
+  const msgs=[{role:'system',content:aiSystemPrompt()}];
+  const cur=currentSheetOutline();                            // 两种模式都读当前画布，但权限不同
+  if(cur.trim()){
+    if(aiEditMode==='edit')                                   // 修改：可增删改这一页
+      msgs.push({role:'system', content:'【当前画布内容（用户已有的导图，请在此基础上修改，可增删改，保留没提到的部分，只输出这一张更新后的导图）】\n'+cur});
+    else                                                      // 新建：只读参考，绝不改动原图，必须另起一张新导图
+      msgs.push({role:'system', content:'【参考：用户当前已有的导图（仅供参考，不要修改或删除它，请另外新建一张导图）】\n'+cur});
+  }
+  msgs.push(...aiTrimmedHistory());                            // 精简上下文：去思考、压旧图
+  try{
+    const full=await aiChatStream(msgs, delta=>{ acc+=delta;
+      bot.bubble.textContent = aiStripBlock(acc) || t(opts.autoGen?'正在展开导图…':'正在整理方案…');
+      aiBodyEl.scrollTop=aiBodyEl.scrollHeight;
+    });
+    // 存历史：一般去掉思考省 token；但若 plan/mindmap 块只写在了思考里，就保留原文，保证重开能恢复卡片
+    let stored=aiStripThink(full);
+    if(!/<(plan|mindmap)/i.test(stored) && /<(plan|mindmap)/i.test(full)) stored=full;
+    aiHistory.push({role:'assistant', content:stored});
+    const asstMsg=aiHistory[aiHistory.length-1];               // 本轮 assistant 消息（卡片确认后在它上面标记 _drawn）
+    if(typeof markDirty==='function') markDirty();             // 对话有更新 → 标脏，随文件一起保存
+    const stripped=aiStripBlock(full);                         // 对话正文（不含机器块/思考）
+    const NOMAP=t('这次没得到有效的导图内容（模型可能没按格式输出、或把内容留在了思考里）。请说「重新生成完整导图」再试一次；若常这样，换个更稳的模型（如 qwen2.5:14b）。');
+    const plan=aiExtractPlan(full);
+    // 先决定要渲染什么，再据此设置气泡文字（避免出现"已为你准备好方案"却没有卡片的误导）
+    if(opts.autoGen){                                          // 阶段二/确认后：已确认过方案 → 详图（可多页）直接落画布
+      const items=aiHarvest(full, opts.struct);
+      if(items.length){ bot.bubble.textContent=stripped||t(aiEditMode==='edit'?'已更新当前画布。':'导图已生成。'); aiApplyItems(items); asstMsg._drawn=true; }
+      else if(plan && plan.outline){ bot.bubble.textContent=stripped||t('已为你准备好一个方案：'); aiRenderPlanCard(plan, asstMsg); }
+      else { bot.bubble.textContent=stripped||t('（这次没生成出内容）'); aiAppendMsg('sys', NOMAP); }
+    } else {                                                   // 一般轮次
+      if(plan && plan.outline){ bot.bubble.textContent=stripped||t('已为你准备好一个方案：'); aiRenderPlanCard(plan, asstMsg); }
+      else { const items=aiHarvest(full);                      // 细化/直接给图 → 出「生成到画布」确认卡（不再直接画，让你先看）
+        if(items.length){ bot.bubble.textContent=stripped||t('导图已就绪，待确认：'); aiRenderGenCard(items, full, asstMsg); }
+        else { bot.bubble.textContent=stripped||t('（这次没生成出内容）'); aiAppendMsg('sys', NOMAP); }
+      }
+    }
+  }catch(err){
+    if(err && err.name==='AbortError') bot.bubble.textContent=t('已停止。');
+    else { const m=(err&&err.message)||(''+err); const hint=aiErrHint(m);
+      bot.bubble.innerHTML='<span style="color:var(--danger)">'+escH(t('请求失败：')+m+(hint?(' — '+hint):''))+'</span>'; }
+  }finally{ aiBusy=false; aiSetSending(false);
+    if(!aiMask.classList.contains('open')) aiSetMenuBadge(true);   // 后台算完了 → AI 助手菜单亮小红点
+    else aiInputEl.focus(); }
+}
+
+function renderAIModelBar(){
+  const bar=document.getElementById('aiModelBar'); if(!bar) return;
+  const c=aiCfgGet();
+  if(!aiConfigured()){ bar.innerHTML=`<span class="ai-chip warn" id="aiCfgOpenChip">⚠ ${escH(t('点此接入模型'))}</span>`; }
+  else { const host=(c.baseUrl||'').replace(/^https?:\/\//,'').split('/')[0];
+    bar.innerHTML=`<span>${escH(t('当前模型'))}：</span><span class="ai-chip" id="aiCfgOpenChip" title="${escH(c.baseUrl||'')}">${escH(c.model||'?')} · ${escH(host)}</span>`; }
+  const chip=document.getElementById('aiCfgOpenChip'); if(chip) chip.onclick=aiOpenCfg;
+}
+
+// ---- 设置子面板 ----
+function aiOpenCfg(){ const c=aiCfgGet();
+  document.getElementById('aiBaseUrl').value=c.baseUrl||'';
+  document.getElementById('aiModel').value=c.model||'';
+  document.getElementById('aiKey').value=c.apiKey||'';
+  document.getElementById('aiCfgStatus').textContent=''; document.getElementById('aiCfgStatus').className='acf-status';
+  document.getElementById('aiModelChips').innerHTML='';
+  document.getElementById('aiCfg').classList.add('open');
+}
+function aiCloseCfg(){ document.getElementById('aiCfg').classList.remove('open'); }
+function aiSaveCfg(){
+  const o={ backend:'openai', baseUrl:document.getElementById('aiBaseUrl').value.trim(),
+    model:document.getElementById('aiModel').value.trim(), apiKey:document.getElementById('aiKey').value };
+  aiCfgSet(o); renderAIModelBar(); aiCloseCfg();
+}
+async function aiTestConn(){
+  const st=document.getElementById('aiCfgStatus');
+  const base=document.getElementById('aiBaseUrl').value.trim().replace(/\/+$/,'');
+  const model=document.getElementById('aiModel').value.trim(); const key=document.getElementById('aiKey').value;
+  if(!base){ st.textContent=t('请先填接口地址'); st.className='acf-status err'; return; }
+  st.textContent=t('连接中…'); st.className='acf-status';
+  const headers={'Content-Type':'application/json'}; if(key) headers['Authorization']='Bearer '+key;
+  // 测试只发最精简请求：不带 max_tokens / temperature（新模型会拒），能拿到 200 即算通
+  const body=JSON.stringify({model, messages:[{role:'user',content:'ping'}], stream:false});
+  const url=base+'/chat/completions';
+  const showErr=(raw)=>{ const hint=aiErrHint(raw); st.textContent=raw+(hint?(' — '+hint):''); st.className='acf-status err'; };
+  try{
+    if(isDesktop && window.api.aiProbe){                     // 桌面版走主进程，绕开 CORS
+      const r=await window.api.aiProbe({url, headers, body});
+      if(r.ok){ st.textContent=t('连接成功 ✓'); st.className='acf-status ok'; }
+      else if(r.error){ st.textContent=t('连不上：')+r.error; st.className='acf-status err'; }
+      else showErr('HTTP '+r.status+(r.text?(' · '+r.text.slice(0,140)):''));
+      return;
+    }
+    const res=await fetch(url,{method:'POST',headers,body});   // 浏览器版直连（可能被 CORS 拦）
+    if(res.ok){ st.textContent=t('连接成功 ✓'); st.className='acf-status ok'; }
+    else { let b=''; try{b=await res.text();}catch(e){} showErr('HTTP '+res.status+(b?(' · '+b.slice(0,140)):'')); }
+  }catch(err){ st.textContent=t('连不上（浏览器需模型允许跨域，桌面版无此限制）：')+((err&&err.message)||err); st.className='acf-status err'; }
+}
+
+// 列出端点可用模型 → 点 chip 填入模型名（省得手打、避免 invalid model name）
+async function aiListModelsFn(){
+  const chips=document.getElementById('aiModelChips'), st=document.getElementById('aiCfgStatus'), btn=document.getElementById('aiListModels');
+  const base=document.getElementById('aiBaseUrl').value.trim().replace(/\/+$/,'');
+  const key=document.getElementById('aiKey').value;
+  if(!base){ st.textContent=t('请先填接口地址'); st.className='acf-status err'; return; }
+  btn.disabled=true; st.textContent=t('获取模型列表…'); st.className='acf-status';
+  const url=base+'/models'; const headers={}; if(key) headers['Authorization']='Bearer '+key;
+  try{
+    let r;
+    if(isDesktop && window.api.aiModels) r=await window.api.aiModels({url, headers});
+    else { const res=await fetch(url,{headers}); r=res.ok?{ok:true,data:await res.json()}:{ok:false,status:res.status}; }
+    if(!r.ok){ st.textContent = r.error?(t('获取失败：')+r.error):('HTTP '+r.status+(r.text?(' · '+r.text.slice(0,120)):'')); st.className='acf-status err'; btn.disabled=false; return; }
+    const list=(((r.data&&r.data.data)|| (Array.isArray(r.data)?r.data:[]))||[]).map(m=>(m&&(m.id||m.name))||m).filter(x=>typeof x==='string');
+    chips.innerHTML='';
+    if(!list.length){ chips.innerHTML='<span class="mchip note">'+escH(t('该服务没返回模型列表，请手动填写'))+'</span>'; st.textContent=''; }
+    else{
+      // 不再截断（旧版 slice(0,80) 会把最新模型切掉）；聊天模型排前 + 最新在最上（多数服务按创建时间从旧到新返回，反转即可）
+      const NONCHAT=/embed|tts|whisper|image|audio|realtime|moderat|transcrib|sora|dall|-search|davinci|babbage/i;
+      const chat=[], other=[]; list.forEach(id=> (NONCHAT.test(id)?other:chat).push(id));
+      chat.reverse(); other.reverse();
+      const mkChip=id=>{ const c=document.createElement('span'); c.className='mchip'; c.textContent=id; c.title=id;
+        c.onclick=()=>{ document.getElementById('aiModel').value=id; st.textContent=t('已选择：')+id; st.className='acf-status ok'; }; chips.appendChild(c); };
+      chat.forEach(mkChip);
+      if(other.length){ const sep=document.createElement('span'); sep.className='mchip note'; sep.textContent=t('↓ 非文本模型（做导图用不了）'); chips.appendChild(sep); other.forEach(mkChip); }
+      st.textContent=t('共 ')+list.length+t(' 个模型，点一个填入'); st.className='acf-status ok';
+    }
+  }catch(err){ st.textContent=t('获取失败：')+((err&&err.message)||err); st.className='acf-status err'; }
+  btn.disabled=false;
+}
+
+// ---- 事件接线 ----
+document.getElementById('scAI').onclick=()=>openAIChat('new');
+document.getElementById('aiListModels').onclick=aiListModelsFn;
+document.getElementById('aiClose').onclick=closeAIChat;
+document.getElementById('aiCfgBtn').onclick=aiOpenCfg;
+document.getElementById('aiCfgBack').onclick=aiCloseCfg;
+document.getElementById('aiCfgSave').onclick=aiSaveCfg;
+document.getElementById('aiTest').onclick=aiTestConn;
+document.getElementById('aiSend').onclick=()=>{ if(aiBusy) aiAbortCurrent(); else aiSendReal(); };
+document.querySelectorAll('#aiPreset button').forEach(b=>b.onclick=()=>{ const p=AI_PRESETS[b.dataset.preset]; if(!p) return;
+  document.getElementById('aiBaseUrl').value=p.baseUrl; document.getElementById('aiModel').value=p.model;
+  const st=document.getElementById('aiCfgStatus'); st.textContent = p.key?t('这家需要 API Key'):t('本地模型通常无需 Key'); st.className='acf-status'; });
+aiInputEl.addEventListener('input',()=>{ aiInputEl.style.height='auto'; aiInputEl.style.height=Math.min(150,aiInputEl.scrollHeight)+'px'; });
+aiInputEl.addEventListener('keydown',e=>{ if(e.key==='Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); aiSendReal(); } });
+// 隔离画布快捷键：对话框内的键盘事件不冒泡给全局
+aiMask.addEventListener('keydown',e=>{ if(e.key==='Escape'){ if(document.getElementById('aiCfg').classList.contains('open')) aiCloseCfg(); else closeAIChat(); } e.stopPropagation(); });
+aiMask.addEventListener('mousedown',e=>{ if(e.target===aiMask) closeAIChat(); });
 
 //================ 甘特图（项目管理：任务信息的起止日期 → 进度条时间轴） ================
 let ganttOpen=false;
@@ -3405,6 +4267,7 @@ async function doNew(type, initStruct){
   const rootId=sheets[0].roots[0];
   if(rootId){ selectTb(rootId); centerContent(); } else { centerWorld(3000,1800); }
   renderSheetTabs(); refreshFileLabel(); initHistory();
+  aiLoadChat([]);                                          // 新文件：清空 AI 对话记录
 }
 
 // 有未保存更改时的拦截，返回 true 表示可继续
@@ -4190,6 +5053,7 @@ function openBarMenu(key, anchor){
 function openMenubar(item){
   const key=item.dataset.menu;
   closeMenus();
+  if(key==='ai'){ openAIChat('assist'); return; }   // AI 助手：直接开对话，不弹下拉
   if(key==='file') openFileMenu();
   else if(key==='struct') openStructMenu();
   else if(key==='tidy') openTidyMenu();
@@ -5263,6 +6127,53 @@ const I18N = {
   '本画布还没有带「开始/截止日期」的任务':'No topics with start/due dates on this sheet yet',
   '在主题右键「任务信息」里填开始日期和截止日期，就会出现在这里':'Set start & due dates in a topic’s “Task info” and it shows up here',
   '负责人':'Assignee','进度':'Progress','未排期':'Undated',
+  // AI 助手（V0.0.7）
+  '✨ AI 助手':'✨ AI Assistant','AI 生成导图':'AI Mind Map','AI 助手':'AI Assistant','一句话 · AI 帮你画':'One line · AI draws it',
+  '先出方案 · 你确认 · 再绘图':'Plan first · you confirm · then draw',
+  'AI 设置':'AI Settings','接入你自己的本地模型或 API Key · 只存本地，绝不上传':'Use your own local model or API Key · stored locally, never uploaded',
+  '快速预设':'Quick presets','🖥 本地 Ollama':'🖥 Local Ollama','☁ 硅基流动':'☁ SiliconFlow',
+  '接口地址（OpenAI 兼容 Base URL）':'API base URL (OpenAI-compatible)',
+  '本地模型（Ollama / LM Studio / llama.cpp 等）与各家云服务都用这一套 OpenAI 兼容接口，填对地址即可。':'Local models (Ollama / LM Studio / llama.cpp) and cloud services all use this OpenAI-compatible API — just set the right URL.',
+  '模型名称':'Model name','API Key（本地模型可留空）':'API Key (leave empty for local models)',
+  '密钥只保存在你本机，随请求直接发往你填写的地址，本软件不经过任何中转服务器。':'Your key is stored only on this machine and sent directly to the URL you set — never through any relay server.',
+  '测试连接':'Test connection','保存':'Save',
+  '描述你想要的导图，例如：做一个关于英语现在进行时语法的导图':'Describe the mindmap you want, e.g. a map about the English present continuous tense',
+  '描述你想要的导图，我会先给出「内容 + 结构」方案，你确认后再绘制。':'Describe the mindmap you want. I will propose the content + structure first; you confirm, then I draw.',
+  '先点右上角 ⚙ 接入你的本地模型或 API Key，就能开始了。':'Tap ⚙ (top-right) to connect your local model or API Key to get started.',
+  '导图方案（可改结构，确认后生成）':'Mindmap plan (change structure, then generate)','生成到画布':'Generate','已生成 ✓':'Generated ✓',
+  '这个方案没解析出内容，请让我重新给一版。':'No content could be parsed from this plan — please ask me to redo it.',
+  'AI 导图':'AI map','思考中…':'Thinking…','正在整理方案…':'Drafting the plan…','已为你准备好一个方案：':'Here is a plan for you:',
+  '已停止。':'Stopped.','请求失败：':'Request failed: ','尚未配置 AI 模型':'No AI model configured yet',
+  '点此接入模型':'Connect a model','当前模型':'Model',
+  '请先填接口地址':'Enter the API base URL first','连接中…':'Connecting…','连接成功 ✓':'Connected ✓','连不上：':'Cannot connect: ',
+  '这家需要 API Key':'This provider needs an API Key','本地模型通常无需 Key':'Local models usually need no Key',
+  '连不上（浏览器 CORS 或地址错误）：':'Cannot connect (browser CORS or wrong URL): ',
+  '连不上（浏览器需模型允许跨域，桌面版无此限制）：':'Cannot connect (browser needs the model to allow CORS; the desktop app has no such limit): ',
+  '📋 列出可用模型':'📋 List available models','获取模型列表…':'Fetching models…','获取失败：':'Fetch failed: ',
+  '该服务没返回模型列表，请手动填写':'This service returned no model list — enter it manually','已选择：':'Selected: ',
+  '↓ 非文本模型（做导图用不了）':'↓ Non-text models (not usable for mind maps)',
+  'Key 无效或无权限':'Invalid or unauthorized API Key',
+  '账号额度/余额不足，去服务商充值，或改用免费的本地模型':'Out of quota/credits — top up with the provider, or switch to a free local model',
+  '请求太频繁，稍后再试':'Too many requests — try again shortly',
+  '地址或模型名不对，检查 Base URL 与模型名':'Wrong URL or model name — check the Base URL and model name',
+  '模型名可能不对':'The model name may be wrong','该模型不支持某个请求参数':'This model rejects one of the request parameters','服务端出错，稍后再试':'Server error — try again later',
+  '共 ':'',' 个模型，点一个填入':' models — click one to fill',
+  '方案（推荐结构如下，确认后再详细生成）':'Plan (recommended structure below; details generated after you confirm)',
+  '推荐结构':'Recommended','确认方案 · 生成导图':'Confirm plan · generate map','生成中…':'Generating…',
+  '完整导图（可改结构，确认后落到画布）':'Full map (change structure if needed, then place on canvas)',
+  '完整导图（多页，确认后落到画布）':'Full map (multi-page; confirm to place on canvas)','页':'pages',
+  '导图已就绪，待确认：':'Map ready — confirm to place it:','（已生成导图 · 见画布）':'(map generated · see canvas)','（这次没生成出内容）':'(nothing was generated this time)',
+  '✏️ 改当前画布':'✏️ Edit current','➕ 新建导图':'➕ New map','更新当前画布':'Update current sheet','已更新 ✓':'Updated ✓','已更新当前画布。':'Current sheet updated.',
+  '说说要怎么改这张画布，例如：给"名词"加两个例句':'Tell me how to change this sheet, e.g. add two examples under "Nouns"',
+  '我已能读取你当前这张画布，会在它基础上帮你改（只改这一页，省 token）。说说要怎么改；想做全新的就点上面「新建导图」。':'I can read your current sheet and will edit it in place (just this page — saves tokens). Tell me what to change; for a brand-new map, click “New map” above.',
+  '确认方案，用「':'Confirm the plan. Use the "','」结构，把它展开成完整详细的导图。':'" structure and expand it into a full, detailed mindmap.',
+  '（若我要求过多页，就每页一个 <mindmap title="页名"> 块）':' (if I asked for multiple pages, output one <mindmap title="page name"> block per page)',
+  '生成导图中…':'Generating map…','正在展开导图…':'Expanding the map…','导图已生成。':'Map generated.',
+  '本次':'this','累计':'total','停止':'Stop','后台已生成，点开查看':'Generated in background — click to view','已完成':'done',
+  '已载入这张导图的 AI 对话记录，可继续对话。':'Loaded the AI conversation saved with this map — you can keep chatting.','（已生成导图）':'(map generated)',
+  '没解析出内容，请换个说法重试。':'Could not parse any content — try rephrasing.',
+  '这次没拿到完整导图，请再点一次「确认方案 · 生成导图」或换个说法。':'Did not get a full map this time — click “Confirm plan · generate map” again or rephrase.',
+  '这次没得到有效的导图内容（模型可能没按格式输出、或把内容留在了思考里）。请说「重新生成完整导图」再试一次；若常这样，换个更稳的模型（如 qwen2.5:14b）。':'No usable map content this time (the model may not have followed the format, or left the content in its thinking). Say “regenerate the full mindmap” to retry; if this happens often, switch to a steadier model (e.g. qwen2.5:14b).',
 };
 const EN2ZH = {}; for(const k in I18N){ if(!(I18N[k] in EN2ZH)) EN2ZH[I18N[k]]=k; }
 function t(s){ return (LANG==='en' && I18N[s]) ? I18N[s] : s; }
@@ -5277,7 +6188,7 @@ function translateNode(root){
   root.querySelectorAll('[placeholder]').forEach(el=>{ const v=el.getAttribute('placeholder').trim(); if(v&&map[v]!==undefined) el.setAttribute('placeholder',map[v]); });
 }
 const I18N_CHROME=['#menubar','#toolbar','#start','#settingsMask','#fileMenu','#exportSub','#jpgSub','#tidyMenu','#structMenu',
-  '#empty','#focusBar','#markerPanel','#taskPanel','#tagPanel','#linkPanel','#noteMask','#uiGalleryMask','#outlineHead','#sheetTabs','#ganttMask'];
+  '#empty','#focusBar','#markerPanel','#taskPanel','#tagPanel','#linkPanel','#noteMask','#uiGalleryMask','#outlineHead','#sheetTabs','#ganttMask','#aiMask'];
 function applyLang(){
   document.body.classList.toggle('lang-en', LANG==='en');
   I18N_CHROME.forEach(sel=>{ const el=document.querySelector(sel); if(el) translateNode(el); });
