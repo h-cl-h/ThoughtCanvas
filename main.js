@@ -2,6 +2,24 @@ const { app, BrowserWindow, Menu, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+// 开发版放源码目录；便携版放 EXE 同级；安装版放 Electron 的 userData，避免 Program Files 写权限问题。
+const textStylesDir = () => process.env.THOUGHTCANVAS_TEXT_STYLES_DIR || path.join(!app.isPackaged ? __dirname : (process.env.PORTABLE_EXECUTABLE_DIR || path.join(app.getPath('appData'), 'ThoughtCanvas')), 'text-styles');
+const textStylesFile = () => path.join(textStylesDir(), 'custom-text-styles.json');
+const textStyleCandidates = () => [...new Set([textStylesFile(), ...(app.isPackaged ? [path.join(path.dirname(process.execPath),'text-styles','custom-text-styles.json')] : [])])];
+let textStyleWatchStarted = false;
+async function readTextStyles() {
+  const found=[];for(const file of textStyleCandidates()){try{const st=await fs.promises.stat(file);found.push({file,mtime:st.mtimeMs});}catch(_){}}
+  found.sort((a,b)=>b.mtime-a.mtime);
+  for(const item of found){try{const json=JSON.parse(await fs.promises.readFile(item.file,'utf8'));return {ok:true,path:item.file,defaultStyleId:json.defaultStyleId||'classic',styleSettings:json.styleSettings||{},styles:Array.isArray(json.styles)?json.styles:[]};}catch(_){}}
+  return {ok:false,path:textStylesFile(),defaultStyleId:'classic',styleSettings:{},styles:[],error:''};
+}
+function startTextStyleWatch() {
+  if (textStyleWatchStarted) return;
+  textStyleWatchStarted = true;
+  fs.mkdirSync(path.dirname(textStylesFile()), { recursive: true });
+  textStyleCandidates().forEach(file=>fs.watchFile(file,{interval:450},()=>{if(mainWin&&!mainWin.isDestroyed())mainWin.webContents.send('text-styles-changed');}));
+}
+
 const FILTERS = [
   { name: 'ThoughtCanvas 思维导图', extensions: ['bmap'] },
   { name: '所有文件', extensions: ['*'] }
@@ -11,15 +29,51 @@ let mainWin = null;
 let pendingFile = null;   // 启动时通过双击文件传入、等待渲染层读取的路径
 let allowClose = false;   // 是否已确认可以关闭
 
+// 让安装版在 Windows 的任务栏、通知和文件关联中使用稳定的应用标识。
+if (process.platform === 'win32') app.setAppUserModelId('com.thoughtcanvas.app');
+
 // 从命令行参数里找出 .bmap 文件路径（双击文件时由系统传入）
 function fileFromArgv(argv) {
   if (!argv) return null;
   const hit = argv.find(a => typeof a === 'string' && /\.bmap$/i.test(a) && fs.existsSync(a));
   return hit || null;
 }
-function readFileSafe(fp) {
-  try { return { ok: true, path: fp, name: path.basename(fp), content: fs.readFileSync(fp, 'utf8') }; }
+async function readFileSafe(fp) {
+  try { return { ok: true, path: fp, name: path.basename(fp), content: await fs.promises.readFile(fp, 'utf8') }; }
   catch (err) { return { ok: false, error: err.message }; }
+}
+
+let saveSessionId = 0;
+const saveSessions = new Map();
+const saveSenderCleanupBound = new Set();
+
+async function cleanupSaveArtifacts(s, closeHandle = true) {
+  if (!s) return;
+  if (closeHandle) await s.handle.close().catch(() => {});
+  await fs.promises.unlink(s.tempPath).catch(() => {});
+}
+async function discardSaveSession(id) {
+  const s = saveSessions.get(id);
+  if (!s) return;
+  saveSessions.delete(id);
+  await cleanupSaveArtifacts(s);
+}
+async function discardSenderSaveSessions(senderId) {
+  const ids = [...saveSessions].filter(([, s]) => s.senderId === senderId).map(([id]) => id);
+  await Promise.all(ids.map(discardSaveSession));
+}
+function bindSaveSenderCleanup(sender) {
+  const senderId = sender.id;
+  if (saveSenderCleanupBound.has(senderId)) return;
+  saveSenderCleanupBound.add(senderId);
+  const cleanup = () => {
+    saveSenderCleanupBound.delete(senderId);
+    sender.removeListener('destroyed', cleanup);
+    sender.removeListener('render-process-gone', cleanup);
+    void discardSenderSaveSessions(senderId);
+  };
+  sender.once('destroyed', cleanup);
+  sender.once('render-process-gone', cleanup);
 }
 
 function createWindow() {
@@ -42,6 +96,7 @@ function createWindow() {
   Menu.setApplicationMenu(null);          // 去掉浏览器式菜单栏
   win.loadFile(path.join(__dirname, 'index.html'));
   mainWin = win;
+  startTextStyleWatch();
 
   // 关闭前：交给渲染层判断是否有未保存更改
   win.on('close', (e) => {
@@ -56,22 +111,49 @@ ipcMain.on('close-confirmed', (e, proceed) => {
   if (proceed && mainWin) { allowClose = true; mainWin.close(); }
 });
 
-// 另存：弹出保存对话框选路径与文件名，再写入
-ipcMain.handle('save-as', async (e, { content, defaultName }) => {
-  const { canceled, filePath } = await dialog.showSaveDialog(mainWin, {
-    title: '另存为',
-    defaultPath: (defaultName || '未命名思维导图') + '.bmap',
-    filters: FILTERS
-  });
-  if (canceled || !filePath) return { canceled: true };
-  fs.writeFileSync(filePath, content, 'utf8');
-  return { canceled: false, path: filePath, name: path.basename(filePath) };
+// 大文件按画布分片写入：渲染层不再构造并跨 IPC 复制一份完整 JSON。
+ipcMain.handle('save-begin', async (e, { filePath, defaultName }) => {
+  let target = filePath;
+  if (!target) {
+    const r = await dialog.showSaveDialog(mainWin, {
+      title: '另存为',
+      defaultPath: (defaultName || '未命名思维导图') + '.bmap',
+      filters: FILTERS
+    });
+    if (r.canceled || !r.filePath) return { canceled: true };
+    target = r.filePath;
+  }
+  const id = `${process.pid}-${++saveSessionId}`;
+  const tempPath = `${target}.tmp-${id}`;
+  const handle = await fs.promises.open(tempPath, 'w');
+  saveSessions.set(id, { handle, tempPath, filePath: target, senderId: e.sender.id, position: 0 });
+  bindSaveSenderCleanup(e.sender);
+  return { canceled: false, id, path: target, name: path.basename(target) };
 });
 
-// 保存到已知路径
-ipcMain.handle('save', async (e, { content, filePath }) => {
-  fs.writeFileSync(filePath, content, 'utf8');
-  return { ok: true, path: filePath, name: path.basename(filePath) };
+ipcMain.handle('save-chunk', async (e, { id, chunk }) => {
+  const s = saveSessions.get(id);
+  if (!s || s.senderId !== e.sender.id) throw new Error('保存会话无效');
+  const buf = Buffer.from(String(chunk || ''), 'utf8');
+  await s.handle.write(buf, 0, buf.length, s.position);
+  s.position += buf.length;
+  return { ok: true };
+});
+
+ipcMain.handle('save-end', async (e, { id, abort }) => {
+  const s = saveSessions.get(id);
+  if (!s || s.senderId !== e.sender.id) throw new Error('保存会话无效');
+  saveSessions.delete(id);
+  let closed = false;
+  try {
+    await s.handle.close();
+    closed = true;
+    if (abort) return { ok: false, canceled: true };
+    await fs.promises.copyFile(s.tempPath, s.filePath);
+    return { ok: true, path: s.filePath, name: path.basename(s.filePath) };
+  } finally {
+    await cleanupSaveArtifacts(s, !closed);
+  }
 });
 
 // 打开：选择文件并读取内容
@@ -83,14 +165,14 @@ ipcMain.handle('open', async () => {
   });
   if (canceled || !filePaths.length) return { canceled: true };
   const filePath = filePaths[0];
-  const content = fs.readFileSync(filePath, 'utf8');
+  const content = await fs.promises.readFile(filePath, 'utf8');
   return { canceled: false, path: filePath, name: path.basename(filePath), content };
 });
 
 // 按路径直接打开（用于“最近使用”）
 ipcMain.handle('open-path', async (e, filePath) => {
   try {
-    const content = fs.readFileSync(filePath, 'utf8');
+    const content = await fs.promises.readFile(filePath, 'utf8');
     return { ok: true, path: filePath, name: path.basename(filePath), content };
   } catch (err) {
     return { ok: false, error: err.message };
@@ -106,19 +188,39 @@ ipcMain.handle('export-save', async (e, { base64, defaultName, ext }) => {
     filters: [{ name: names[ext] || ext, extensions: [ext] }]
   });
   if (canceled || !filePath) return { canceled: true };
-  fs.writeFileSync(filePath, Buffer.from(base64, 'base64'));
+  await fs.promises.writeFile(filePath, Buffer.from(base64, 'base64'));
   return { canceled: false, path: filePath };
 });
 
 // UI 皮肤持久化到 userData 下的文件（localStorage 万一被清也能恢复，导入后无需重复导入）
 const skinsFile = () => path.join(app.getPath('userData'), 'ui-skins.json');
-ipcMain.handle('skins-load', () => { try { return fs.readFileSync(skinsFile(), 'utf8'); } catch (err) { return null; } });
-ipcMain.handle('skins-save', (e, json) => { try { fs.writeFileSync(skinsFile(), json, 'utf8'); return { ok: true }; } catch (err) { return { ok: false, error: err.message }; } });
+function orderedTextStore(fileFor){
+  let queue=Promise.resolve();
+  return {
+    read:async()=>{await queue;return fs.promises.readFile(fileFor(),'utf8');},
+    write:json=>{const task=queue.then(()=>fs.promises.writeFile(fileFor(),json,'utf8'));queue=task.catch(()=>{});return task;}
+  };
+}
+const skinsStore=orderedTextStore(skinsFile);
+ipcMain.handle('skins-load', async () => { try { return await skinsStore.read(); } catch (err) { return null; } });
+ipcMain.handle('skins-save', async (e, json) => { try { await skinsStore.write(json); return { ok: true }; } catch (err) { return { ok: false, error: err.message }; } });
+
+ipcMain.handle('text-styles-load', async () => readTextStyles());
+ipcMain.handle('text-styles-location', async () => ({ directory: textStylesDir(), file: textStylesFile(), executable: process.execPath }));
+ipcMain.handle('text-styles-save', async (e, library) => {
+  try {
+    const clean={format:'thoughtcanvas-text-styles',version:1,defaultStyleId:(library&&library.defaultStyleId)||'classic',styleSettings:(library&&library.styleSettings)||{},styles:Array.isArray(library&&library.styles)?library.styles:[]};
+    await fs.promises.mkdir(textStylesDir(),{recursive:true});
+    const tmp=textStylesFile()+'.tmp';await fs.promises.writeFile(tmp,JSON.stringify(clean,null,2),'utf8');await fs.promises.copyFile(tmp,textStylesFile());await fs.promises.unlink(tmp);
+    return {ok:true,path:textStylesFile()};
+  } catch(err){ return {ok:false,error:err.message,path:textStylesFile()}; }
+});
 
 // AI 设置（后端/地址/模型名/API Key）持久化到 userData 下的文件——同 UI 皮肤，重启不丢；密钥只落本地，绝不上传
 const aiConfFile = () => path.join(app.getPath('userData'), 'ai-config.json');
-ipcMain.handle('aiconf-load', () => { try { return fs.readFileSync(aiConfFile(), 'utf8'); } catch (err) { return null; } });
-ipcMain.handle('aiconf-save', (e, json) => { try { fs.writeFileSync(aiConfFile(), json, 'utf8'); return { ok: true }; } catch (err) { return { ok: false, error: err.message }; } });
+const aiConfStore=orderedTextStore(aiConfFile);
+ipcMain.handle('aiconf-load', async () => { try { return await aiConfStore.read(); } catch (err) { return null; } });
+ipcMain.handle('aiconf-save', async (e, json) => { try { await aiConfStore.write(json); return { ok: true }; } catch (err) { return { ok: false, error: err.message }; } });
 
 // AI 请求走主进程（Node，无浏览器 CORS 限制，可直连本地 Ollama/LM Studio 与各家云）。
 // 密钥/地址由渲染层传来，主进程只负责转发，不落任何日志、不改内容。
@@ -156,9 +258,9 @@ ipcMain.handle('ai-models', async (e, { url, headers }) => {
 });
 
 // 渲染层启动时索取“双击打开的初始文件”
-ipcMain.handle('get-initial-file', () => {
+ipcMain.handle('get-initial-file', async () => {
   if (!pendingFile) return null;
-  const r = readFileSafe(pendingFile);
+  const r = await readFileSafe(pendingFile);
   pendingFile = null;
   return r.ok ? r : null;
 });
@@ -177,7 +279,14 @@ ipcMain.handle('confirm-discard', async (e, name) => {
 });
 
 // 单实例：已开着软件时再双击文件，转发给现有窗口，而不是另开一个
-const gotLock = app.requestSingleInstanceLock();
+const integrationTest = process.env.THOUGHTCANVAS_INTEGRATION_TEST === '1';
+let openFileQueue=Promise.resolve();
+function enqueueOpenFile(fp){
+  openFileQueue=openFileQueue.then(async()=>{const r=await readFileSafe(fp);
+    if(r.ok&&mainWin&&!mainWin.isDestroyed())mainWin.webContents.send('open-file-data',r);}).catch(()=>{});
+  return openFileQueue;
+}
+const gotLock = integrationTest || app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
@@ -186,21 +295,19 @@ if (!gotLock) {
     if (mainWin) {
       if (mainWin.isMinimized()) mainWin.restore();
       mainWin.focus();
-      if (f) {
-        const r = readFileSafe(f);
-        if (r.ok) mainWin.webContents.send('open-file-data', r);
-      }
+      if (f) enqueueOpenFile(f);
     }
   });
 
   // macOS：通过“打开方式”打开文件
   app.on('open-file', (event, fp) => {
     event.preventDefault();
-    if (mainWin) { const r = readFileSafe(fp); if (r.ok) mainWin.webContents.send('open-file-data', r); }
+    if (mainWin) enqueueOpenFile(fp);
     else pendingFile = fp;
   });
 
   app.whenReady().then(() => {
+    if (integrationTest) return;
     pendingFile = fileFromArgv(process.argv);   // 首次启动时双击传入的文件
     createWindow();
     app.on('activate', () => {

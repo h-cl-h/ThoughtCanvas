@@ -103,7 +103,7 @@
   .elbow-path.locked{stroke:var(--lock);}
   .elbow-path.sel{stroke:var(--accent);stroke-width:2.6;}
   .struct-axis{fill:none;stroke:var(--brace);stroke-width:2.4;stroke-linecap:round;opacity:.9;}
-  .struct-dot{fill:var(--accent);stroke:var(--bg);stroke-width:1.5;}
+  .struct-dot{fill:var(--accent);stroke:var(--bg);stroke-width:1.5;cursor:context-menu;pointer-events:all;}
   .struct-grid{fill:none;stroke:var(--brace);stroke-width:1.4;opacity:.7;}
   .seg-handle{fill:var(--accent);stroke:var(--bg);stroke-width:1.5;cursor:move;pointer-events:all;opacity:.85;}
   .seg-handle:hover{opacity:1;}
@@ -169,6 +169,7 @@
   /* ---------- Node (3 layers: translate / float / shake) ---------- */
   .node{position:absolute;left:0;top:0;
     transition:transform .34s cubic-bezier(.22,1,.36,1);will-change:transform;}
+  .node.editing-text{transition:none!important;}
   .node.dragging{transition:none;z-index:30;}
   body.dragging .node{transition:none;}
   .node.spawn .card{animation:pop .34s cubic-bezier(.22,1,.36,1);}
@@ -185,7 +186,7 @@
     font-size:14px;line-height:1.4;color:var(--ink);
     white-space:pre-wrap;word-break:break-word;outline:none;text-align:center;
   }
-  .card-inner.settle{animation:settle .52s cubic-bezier(.36,.07,.19,.97);}
+  .card-inner.settle,.ts-decoration.ts-composite.settle{animation:settle .52s cubic-bezier(.36,.07,.19,.97);}
   .card-inner.empty:not([contenteditable="true"])::before{content:"双击编辑";color:var(--muted);}
   .card-inner[contenteditable="true"]{cursor:text;}
   /* locked styling */
@@ -365,7 +366,8 @@
   /* 底部画布标签栏（多画布） */
   #sheetTabs{position:fixed;left:0;right:0;bottom:0;height:32px;z-index:46;display:flex;align-items:stretch;
     background:var(--card);border-top:1px solid var(--card-border);padding:0 4px;overflow-x:auto;overflow-y:hidden;}
-  #sheetTabList{display:flex;align-items:stretch;}
+  #sheetTabList{display:flex;align-items:stretch;flex:1;min-width:0;overflow-x:auto;overflow-y:hidden;
+    scrollbar-width:thin;contain:layout style;}
   .sheet-tab{display:flex;align-items:center;gap:5px;padding:0 10px;font-size:12.5px;color:var(--muted);cursor:pointer;
     max-width:180px;white-space:nowrap;user-select:none;border-radius:8px 8px 0 0;margin-top:3px;}
   .sheet-tab:hover{color:var(--ink);background:var(--bg);}
@@ -443,6 +445,8 @@
   .ol-mkc .mk.prio{width:15px;height:15px;font-size:9.5px;}
   .ol-mkc .mk.prog{width:14px;height:14px;}
   .ol-mkc .mk.emoji{font-size:12px;}
+  .ol-meta{display:flex;align-items:center;gap:7px;flex-shrink:0;}
+  .ol-meta:empty{display:none;}
   #outlineBody{position:relative;}
   .ol-row.oldrag{opacity:.35;}
   body.ol-dragging{cursor:grabbing;user-select:none;}
@@ -870,6 +874,7 @@
   /* 开始页 AI 卡片高亮 */
   .newcard.sc-ai .nc-thumb{background:linear-gradient(135deg,var(--accent),#8b5cf6);color:#fff;}
 </style>
+<link rel="stylesheet" href="text-styles.css">
 </head>
 <body>
 
@@ -879,7 +884,7 @@
     <div class="brand"><span class="logo">✦</span><div><div class="bt">ThoughtCanvas</div><div class="bs">思维画布</div></div></div>
     <div class="side-sub">大括号 · 蜘蛛网 · 多种结构图<br>自由梳理你的思路结构</div>
     <button id="scSettings" class="side-btn">⚙ 设置</button>
-    <div class="ver">V0.0.7</div>
+    <div class="ver">V0.0.8</div>
   </div>
   <div class="start-main">
     <h2 class="sh">开始</h2>
@@ -924,6 +929,7 @@
   <div class="title" id="homeBtn" title="返回开始页"><span class="dot"></span><span class="lbl">大括号思维导图</span></div>
   <div class="mb-item" id="fileMenuBtn" data-menu="file"><span class="lbl">文件</span></div>
   <div class="mb-item" data-menu="edit"><span class="lbl">编辑</span></div>
+  <div class="mb-item" id="textStyleBtn" title="文本框样式、字体与输入限制"><span class="lbl">文本样式</span></div>
   <div class="mb-item" data-menu="insert"><span class="lbl">插入</span></div>
   <div class="mb-item" id="structBtn" data-menu="struct"><span class="lbl">结构</span></div>
   <div class="mb-item" id="tidyBtn" data-menu="tidy"><span class="lbl">整理</span></div>
@@ -1256,12 +1262,12 @@ let idc = 0;
 let scale = 1, panX = 0, panY = 0;   // 画布缩放 / 平移
 let curPath = null;                  // 当前文件路径（桌面版）
 let curName = '未命名思维导图';
-let dirty = false;
+let dirty = false, modelRevision = 0;
 // 多画布：全局状态(TB/BR/...) 始终代表“当前活动画布”，文件持有 sheets[]（每张=一份干净数据对象）
 let sheets = [];          // 非活动画布的数据对象；活动画布以全局状态为准
 let curSheet = 0;         // 当前活动画布索引
 let curSheetName = '画布 1';
-let history = [], hidx = -1;          // 撤销/重做历史
+let history = [], hidx = 0, historyShadow = null; // 增量撤销补丁；hidx=已应用补丁数
 let readonly = false;                 // 阅读模式：全局只读
 let compactMode = 0;                  // 整理：0=关 1=智能整理(纵向) 2=智能整理+(纵向+横向)
 let numbering = localStorage.getItem('bmap.numbering') || '';  // 主题编号：'' 关 | 'num' 1.2.3 | 'alpha' A.B.C | 'lalpha' a.b.c | 'roman' I.II.III
@@ -1269,6 +1275,16 @@ const nid = p => p + (++idc);
 
 const BRANCH_GAP = 50;   // 父框右缘 → 子框左缘
 const V_GAP = 26;        // 兄弟子树垂直间隔
+
+// 高频指针事件只在每个动画帧执行一次，避免 120/240Hz 鼠标把布局队列淹没。
+function rafThrottle(fn){
+  let raf=0, ctx=null, args=null;
+  const run=()=>{ raf=0; const c=ctx,a=args; ctx=args=null; fn.apply(c,a); };
+  const wrapped=function(...a){ ctx=this; args=a; if(!raf) raf=requestAnimationFrame(run); };
+  wrapped.flush=()=>{ if(!raf) return; cancelAnimationFrame(raf); run(); };
+  wrapped.cancel=()=>{ if(raf) cancelAnimationFrame(raf); raf=0; ctx=args=null; };
+  return wrapped;
+}
 
 const canvas = document.getElementById('canvas');
 const world  = document.getElementById('world');
@@ -1308,7 +1324,7 @@ function ensureVisible(id){
 }
 
 //================ 创建/删除 ================
-function newTextbox(text=''){const id=nid('t');TB[id]={id,text,locked:false,parentBrace:null,brace:null,x:0,y:0};return id;}
+function newTextbox(text=''){const id=nid('t'),sid=window.TextStyleFeature&&TextStyleFeature.getDefaultStyleId?TextStyleFeature.getDefaultStyleId('normal'):'';TB[id]={id,text,locked:false,parentBrace:null,brace:null,x:0,y:0};if(sid&&sid!=='classic')TB[id].textStyleId=sid;return id;}
 
 function addRootAt(wx, wy){
   if(readonly) return;
@@ -1386,6 +1402,8 @@ function navMove(id, where){
 
 function deleteTb(id){
   const t = TB[id]; if(!t) return;
+  // 删除结构子项时，同时删除吸附在该结构节点上的文本框，避免留下失去节点的孤立框。
+  Object.keys(TB).filter(aid=>aid!==id&&TB[aid]&&TB[aid]._nodeAttach&&TB[aid]._nodeAttach.childId===id).forEach(deleteTb);
   if(t.brace) deleteBrace(t.brace);
   // 反向大括号关联清理
   for(const rid of Object.keys(RB)){ const rb=RB[rid];
@@ -1443,36 +1461,43 @@ function isUnderLockedBrace(tbId){
 //================ 渲染 ================
 function update(){ render(); layout(); updateFocusBar(); }
 
-function render(){
-  computeNumbers();                                          // 主题编号（在建/更新节点前算好）
-  recomputeFocus();                                          // 聚焦集合
-  // 创建缺失节点
-  for(const id in TB){
-    if(!els[id]) createEl(id);
-    const t = TB[id], e = els[id];
-    const inner = e._inner;
-    if(editing!==id){
-      const txt = t._ghost ? '拖文本框到此' : t.text;
-      if(inner.textContent!==txt) inner.textContent = txt;
-      inner.classList.toggle('empty', !t._ghost && t.text.trim()==='');
-    }
-    e.classList.toggle('ghost', !!t._ghost);
-    e.classList.toggle('sel', selSet.has(id) && !t._ghost);
-    e.classList.toggle('primary', selSet.size===1 && selSet.has(id) && !t._ghost);
-    e.classList.toggle('locked', t.locked);
-    e.classList.toggle('brace-locked', !t.locked && isUnderLockedBrace(id));
-    e.classList.toggle('todo', !t._ghost && !!t.todo);
-    e.classList.toggle('done', !t._ghost && !!t.todo && !!t.done);
-    e._card.style.background = t._ghost ? '' : (t.bg || '');   // 自定义背景色
-    if(e._numBadge){ const nm = t._ghost ? '' : (t._num||''); e._numBadge.textContent = nm; e.classList.toggle('has-num', !!nm); }
-    e.style.display = focusVisible(id) ? '' : 'none';          // 聚焦：隐藏非该分支的节点
-    renderExtras(id);                                          // 标记 / 标签 / 备注 / 链接
+function renderNode(id){
+  if(!TB[id]) return;
+  if(!els[id]) createEl(id);
+  const t = TB[id], e = els[id], inner = e._inner;
+  if(editing!==id){
+    const txt = t._ghost ? '拖文本框到此' : t.text;
+    if(inner.textContent!==txt) inner.textContent = txt;
+    inner.classList.toggle('empty', !t._ghost && t.text.trim()==='');
   }
-  // 删除多余
-  for(const id in els){ if(!TB[id]) removeEl(id); }
-  document.getElementById('empty').style.display = roots.length?'none':'flex';
-  renderOutline();                                            // 大纲视图实时同步
-  renderLegend();                                             // 标记图例
+  e.classList.toggle('ghost', !!t._ghost);
+  e.classList.toggle('sel', selSet.has(id) && !t._ghost);
+  e.classList.toggle('primary', selSet.size===1 && selSet.has(id) && !t._ghost);
+  e.classList.toggle('locked', t.locked);
+  e.classList.toggle('brace-locked', !t.locked && isUnderLockedBrace(id));
+  e.classList.toggle('todo', !t._ghost && !!t.todo);
+  e.classList.toggle('done', !t._ghost && !!t.todo && !!t.done);
+  e._card.style.background = t._ghost ? '' : (t.bg || '');
+  if(e._numBadge){ const nm=t._ghost?'':(t._num||''); if(e._numBadge.textContent!==nm)e._numBadge.textContent=nm; e.classList.toggle('has-num',!!nm); }
+  e.style.display = focusVisible(id) ? '' : 'none';
+  if(window.applyTextStyleToNode) window.applyTextStyleToNode(id);
+  renderExtras(id);
+}
+
+// ids 传入时只刷新指定节点；结构变化仍走无参数的全量路径。
+function render(ids){
+  const partial = ids!=null;
+  if(!partial){ computeNumbers(); recomputeFocus(); }
+  const target = partial ? [...new Set(ids)].filter(id=>TB[id]) : Object.keys(TB);
+  target.forEach(renderNode);
+  if(!partial){
+    for(const id in els){ if(!TB[id]) removeEl(id); }
+    document.getElementById('empty').style.display = roots.length?'none':'flex';
+    renderOutline();
+    renderLegend();
+  } else if(outlineOpen){
+    renderOutlinePartial(target);
+  }
 }
 
 function createEl(id){
@@ -1530,7 +1555,7 @@ function createEl(id){
     let slot=null, baseX=0, baseY=0, detachedFrom=null;
     const enterFree=()=>{ const fb=TB[id].parentBrace; if(ctrl) detachBox(id); if(fb) detachedFrom=fb; baseX=t.x; baseY=t.y; mode='free'; };
     try{ card.setPointerCapture(e.pointerId); }catch(_){}
-    const mv=ev=>{
+    const moveFrame=rafThrottle(ev=>{
       const dx=ev.clientX-down.x, dy=ev.clientY-down.y;
       if(!moved){ if(Math.abs(dx)+Math.abs(dy)<=4) return;
         moved=true; node.classList.add('dragging'); document.body.classList.add('dragging');
@@ -1554,8 +1579,10 @@ function createEl(id){
       }
       t.x=baseX+dx/scale; t.y=baseY+dy/scale; layout();
       slot=findSnapSlot(id, detachedFrom); showHint(slot);
-    };
+    });
+    const mv=ev=>moveFrame(ev);
     const up=ev=>{
+      moveFrame.flush();
       try{ card.releasePointerCapture(e.pointerId); }catch(_){}
       card.removeEventListener('pointermove',mv); card.removeEventListener('pointerup',up);
       node.classList.remove('dragging'); document.body.classList.remove('dragging');
@@ -1652,13 +1679,24 @@ function assignX(id, leftX){
 //     不同目录(不同分支)之间的同级节点允许横向错开重叠区域(由碰撞检测保证不真正重叠)。
 const COL_STEP = 112;        // 横向错位步长（约一列宽）
 const SHIFT_COST = 0.34;     // 右移代价：每右移 1px 约等于多占 0.34px 纵向
+const COLLISION_BUCKET = 24;
+function boxBuckets(x1,x2,fn){ if(!(x2>x1))return;const a=Math.floor(x1/COLLISION_BUCKET),b=Math.ceil(x2/COLLISION_BUCKET)-1;for(let i=a;i<=b;i++)fn(i); }
+// 桶只负责缩小候选集；命中后仍按旧算法精确检查横向区间，保证布局结果不变。
+function collisionNeed(index,boxes,dx,gap,epsilon=0){ let d=-Infinity;
+  for(const cb of boxes){ const x1=cb.x1+dx,x2=cb.x2+dx,seen=new Set();
+    boxBuckets(x1,x2,k=>{ for(const rb of (index.get(k)||[])){ if(seen.has(rb))continue;seen.add(rb);
+      if(x2>rb.x1+epsilon&&x1<rb.x2-epsilon)d=Math.max(d,rb.bottom+gap-cb.top); } }); }
+  return d;
+}
+function indexPlacedBoxes(index,boxes,dx,dy){ for(const cb of boxes){ const rb={x1:cb.x1+dx,x2:cb.x2+dx,bottom:cb.bottom+dy};
+  boxBuckets(rb.x1,rb.x2,k=>{let list=index.get(k);if(!list)index.set(k,list=[]);list.push(rb);}); } }
 function layoutPlus(id){
   const t=TB[id], b=t.brace?BR[t.brace]:null;
   const selfBox={x1:0,x2:t._w,top:-t._h/2,bottom:t._h/2};
   if(!b || !b.children.length) return {boxes:[selfBox]};
   const baseX=t._w + BRANCH_GAP_PLUS;
   const frames=b.children.map(layoutPlus);
-  const running=[]; const rel=[];
+  const collisionIndex=new Map(); const rel=[];
   for(let i=0;i<frames.length;i++){
     const f=frames[i], cht=TB[b.children[i]];
     // 同一目录：本子节点必须比上一个子节点至少低一整行（一行一个，杜绝同级横向挤在一起）
@@ -1670,18 +1708,14 @@ function layoutPlus(id){
       let dy;
       if(i===0){ dy=0; }
       else {
-        dy=-Infinity;
-        for(const rb of running) for(const cb of f.boxes){
-          const x1=cb.x1+dx, x2=cb.x2+dx;
-          if(x2>rb.x1+0.5 && x1<rb.x2-0.5){ const need=rb.bottom+curVGap-cb.top; if(need>dy) dy=need; }
-        }
+        dy=collisionNeed(collisionIndex,f.boxes,dx,curVGap,0.5);
         if(dy<minRow) dy=minRow;                  // 至少低一行 → 同父绝不同行
       }
       const cost=dy + SHIFT_COST*k*COL_STEP;       // 在"低一行"前提下，优先少右移
       if(!best || cost<best.cost) best={dx,dy,cost};
     }
     rel.push({dx:best.dx, dy:best.dy});
-    for(const cb of f.boxes) running.push({x1:cb.x1+best.dx, x2:cb.x2+best.dx, top:cb.top+best.dy, bottom:cb.bottom+best.dy});
+    indexPlacedBoxes(collisionIndex,f.boxes,best.dx,best.dy);
   }
   const ys=rel.map(r=>r.dy);
   const pc=(Math.min(...ys)+Math.max(...ys))/2;    // 父节点纵向居中于首尾子节点
@@ -1712,23 +1746,17 @@ function layoutY(id){
     return {boxes:[bx], top:bx.top, bottom:bx.bottom};
   }
   const frames=b.children.map(layoutY);
-  const centers=[]; const running=[];
+  const centers=[]; const collisionIndex=new Map();
   for(let i=0;i<frames.length;i++){
     const f=frames[i];
     let d;
     if(i===0){ d=0; }
     else {
-      d=-Infinity;
-      for(const rb of running) for(const cb of f.boxes){
-        if(cb.x2>rb.x1 && cb.x1<rb.x2){               // 仅同列(横向重叠)才需让位
-          const need=rb.bottom + curVGap - cb.top;
-          if(need>d) d=need;
-        }
-      }
+      d=collisionNeed(collisionIndex,f.boxes,0,curVGap);
       if(d===-Infinity) d=centers[i-1]+curVGap;        // 理论上同级兄弟必同列，不会发生
     }
     centers.push(d);
-    for(const cb of f.boxes) running.push({x1:cb.x1,x2:cb.x2,top:cb.top+d,bottom:cb.bottom+d});
+    indexPlacedBoxes(collisionIndex,f.boxes,0,d);
   }
   const pc=(centers[0]+centers[centers.length-1])/2;   // 父节点居中于首尾子节点之间
   b.children.forEach((c,i)=> TB[c]._relY = centers[i]-pc);
@@ -1931,8 +1959,8 @@ function axisConn(b, st){
   let bones=''; const dots=[];
   ch.forEach(c=>{ const t=TB[c]; const ccx=t._x+t._w/2;
     const edge=t._cy+(t._cy<axisY ? t._h/2 : -t._h/2);
-    if(st==='fishbone'){ const sx=ccx-38; bones+=`M ${F(sx)} ${F(axisY)} L ${F(ccx)} ${F(edge)} `; }
-    else { bones+=`M ${F(ccx)} ${F(axisY)} L ${F(ccx)} ${F(edge)} `; dots.push([ccx,axisY]); }
+    if(st==='fishbone'){ const sx=ccx-38; bones+=`M ${F(sx)} ${F(axisY)} L ${F(ccx)} ${F(edge)} `; dots.push([sx,axisY,c]); }
+    else { bones+=`M ${F(ccx)} ${F(axisY)} L ${F(ccx)} ${F(edge)} `; dots.push([ccx,axisY,c]); }
   });
   return {spine, bones, dots};
 }
@@ -1969,24 +1997,24 @@ function structConn(bid, st){
   const hs=(!readonly&&st!=='matrix')?segHandles(b):'';   // 段长手柄：贴在连线接到文本框的端点上；阅读模式不显示
   if(st==='timeline' || st==='fishbone'){
     const r=axisConn(b, st);
-    let s=`<path class="struct-axis ${sc}" d="${r.spine}"/>`;
-    if(r.bones.trim()) s+=`<path class="elbow-path ${lc} ${sc}" d="${r.bones}"/>`;
-    r.dots.forEach(pt=>{ s+=`<circle class="struct-dot" cx="${F(pt[0])}" cy="${F(pt[1])}" r="4"/>`; });
+    let s=`<path class="struct-axis ${sc}" data-brace-visual="${bid}" d="${r.spine}"/>`;
+    if(r.bones.trim()) s+=`<path class="elbow-path ${lc} ${sc}" data-brace-visual="${bid}" d="${r.bones}"/>`;
     s+=`<path class="brace-hit" data-brace="${bid}" d="${r.spine}"/>`;
+    r.dots.forEach(pt=>{ s+=`<circle class="struct-dot struct-node" data-node-brace="${bid}" data-node-child="${pt[2]}" cx="${F(pt[0])}" cy="${F(pt[1])}" r="8"/>`; });
     return s+hs;
   }
   if(st==='matrix'){
     const r=gridConn(b);
-    return `<path class="struct-grid ${sc}" d="${r.grid}"/><path class="elbow-path ${lc}" d="${r.link}"/><path class="brace-hit" data-brace="${bid}" d="${r.link||r.grid}"/>`;
+    return `<path class="struct-grid ${sc}" data-brace-visual="${bid}" d="${r.grid}"/><path class="elbow-path ${lc}" d="${r.link}"/><path class="brace-hit" data-brace="${bid}" d="${r.link||r.grid}"/>`;
   }
   if(st==='treetable'){
     const r=tableConn(b);
-    return `<path class="struct-grid ${sc}" d="${r.rules}"/><path class="elbow-path ${lc}" d="${r.spine}"/><path class="brace-hit" data-brace="${bid}" d="${r.spine}"/>`+hs;
+    return `<path class="struct-grid ${sc}" data-brace-visual="${bid}" d="${r.rules}"/><path class="elbow-path ${lc}" d="${r.spine}"/><path class="brace-hit" data-brace="${bid}" d="${r.spine}"/>`+hs;
   }
   // 肘形家族（逻辑图/组织结构图/树状图）
   const d=(st==='orgD')?elbowDown(b):(st==='tree')?elbowTree(b):elbowRight(b);
   if(!d) return '';
-  return `<path class="elbow-path ${lc} ${sc}" d="${d}"/><path class="brace-hit" data-brace="${bid}" d="${d}"/>`+hs;
+  return `<path class="elbow-path ${lc} ${sc}" data-brace-visual="${bid}" d="${d}"/><path class="brace-hit" data-brace="${bid}" d="${d}"/>`+hs;
 }
 // 每个子级在“连线接到它文本框那条边的外侧一点点”画一个可拖小圆（避开卡片、点得到、始终落在真实连线上），拖它（或直接拖文本框）都自由二维移动该子及其子树
 function segHandleXY(st, p, c){
@@ -2000,18 +2028,27 @@ function segHandles(b){
   const st=effStruct(b.parentTb); let s='';
   b.children.filter(c=>TB[c]).forEach(cid=>{ const c=TB[cid];
     const [hx,hy]=segHandleXY(st,p,c);
-    s+=`<circle class="seg-handle" data-seg="${cid}" cx="${F(hx)}" cy="${F(hy)}" r="5"/>`;
+    s+=`<circle class="seg-handle struct-node" data-seg="${cid}" data-node-brace="${b.id}" data-node-child="${cid}" cx="${F(hx)}" cy="${F(hy)}" r="8"/>`;
   });
   return s;
 }
+function structuralNodeRefKey(ref){ return `${ref.braceId}:${ref.childId}`; }
+function structuralNodePoint(ref){ const b=BR[ref&&ref.braceId],c=TB[ref&&ref.childId],p=b&&TB[b.parentTb];if(!b||!c||!p)return null;const st=effStruct(b.parentTb);if(st==='timeline')return{x:c._x+c._w/2,y:p._cy};if(st==='fishbone')return{x:c._x+c._w/2-38,y:p._cy};const pt=segHandleXY(st,p,c);return{x:pt[0],y:pt[1]}; }
+function structuralNodeRefs(){ const out=[];for(const bid in BR){const b=BR[bid],st=effStruct(b.parentTb);if(st==='brace'||st==='matrix')continue;(b.children||[]).forEach(cid=>{if(TB[cid])out.push({braceId:bid,childId:cid});});}return out; }
+function positionStructuralNodeTextboxes(){ for(const id in TB){const t=TB[id];if(!t._nodeAttach)continue;const p=structuralNodePoint(t._nodeAttach);if(!p)continue;const ax=Number.isFinite(t._textRegionAnchorX)?t._textRegionAnchorX:.5,ay=Number.isFinite(t._textRegionAnchorY)?t._textRegionAnchorY:.5;t._x=p.x-t._w*ax;t._cy=p.y+(.5-ay)*t._h;} }
+function createStructuralNodeTextbox(ref,styleId,edit=true,defer=false){ if(readonly||!ref)return null;const key=structuralNodeRefKey(ref);let id=Object.keys(TB).find(x=>TB[x]._nodeAttach&&structuralNodeRefKey(TB[x]._nodeAttach)===key);if(!id){id=newTextbox('');const t=TB[id];t._nodeAttach={braceId:ref.braceId,childId:ref.childId};t.textStylePlacement='node';roots.push(id);}const t=TB[id];if(styleId){delete t.textStyle;t.textStyleId=styleId;t.textStylePlacement='node';delete t.textRules;delete t.textSizing;delete t._textRulesOverride;delete t._textSizingOverride;}if(!defer){update();layout();selectTb(id);if(edit)startEdit(id);markDirty();}return id; }
+function placeTextStyleOnAllStructuralNodes(styleId){const refs=structuralNodeRefs();refs.forEach(ref=>createStructuralNodeTextbox(ref,styleId,false,true));if(refs.length){update();layout();markDirty();}return refs.length;}
+window.createStructuralNodeTextbox=createStructuralNodeTextbox;
+window.placeTextStyleOnAllStructuralNodes=placeTextStyleOnAllStructuralNodes;
 function startSegHandleDrag(cid, e){
   if(readonly||!TB[cid]) return;
   const t=TB[cid];
   const baseX=t._offX||0, baseY=t._offY||0, sx=e.clientX, sy=e.clientY;   // 拖手柄 = 自由二维移动该子（与直接拖文本框一致）
   const skip=subtreeSet(cid);
-  const mv=ev=>{ t._offX=baseX+(ev.clientX-sx)/scale; t._offY=baseY+(ev.clientY-sy)/scale; layout();
-    const sn=alignSnap(cid,skip); if(sn.snapX)t._offX+=sn.dx; if(sn.snapY)t._offY+=sn.dy; if(sn.snapX||sn.snapY)layout(); showAlignGuides(cid,sn); };
-  const up=()=>{ window.removeEventListener('pointermove',mv); window.removeEventListener('pointerup',up); hideAlignGuides(); markDirty(); };
+  const frame=rafThrottle(ev=>{ t._offX=baseX+(ev.clientX-sx)/scale; t._offY=baseY+(ev.clientY-sy)/scale; layout();
+    const sn=alignSnap(cid,skip); if(sn.snapX)t._offX+=sn.dx; if(sn.snapY)t._offY+=sn.dy; if(sn.snapX||sn.snapY)layout(); showAlignGuides(cid,sn); });
+  const mv=ev=>frame(ev);
+  const up=()=>{ frame.flush(); window.removeEventListener('pointermove',mv); window.removeEventListener('pointerup',up); hideAlignGuides(); markDirty(); };
   window.addEventListener('pointermove',mv); window.addEventListener('pointerup',up);
 }
 // ---- 对齐辅助线 + 磁吸：拖动某节点时，若其中心与别的文本框中心同一横/纵坐标（阈值内），吸附并显示虚线 ----
@@ -2058,7 +2095,7 @@ function openSegPanel(id, cx, cy){
   r.addEventListener('change',()=>markDirty());
   d.querySelector('#segPanelReset').addEventListener('click',ev=>{ ev.stopPropagation(); delete TB[id]._seg; layout(); markDirty(); closeSegPanel(); });
 }
-svg.addEventListener('pointerdown', e=>{ const h=e.target.closest&&e.target.closest('.seg-handle'); if(h){ e.stopPropagation(); startSegHandleDrag(h.getAttribute('data-seg'), e); } });
+svg.addEventListener('pointerdown', e=>{ if(e.button!==0)return;const h=e.target.closest&&e.target.closest('.seg-handle'); if(h){ e.stopPropagation(); startSegHandleDrag(h.getAttribute('data-seg'), e); } });
 // SVG 数字安全格式化（与中文系统无关，统一保留 2 位）
 function F(n){ return (Math.round(n*100)/100); }
 
@@ -2079,6 +2116,7 @@ function layout(){
   }
   roots.forEach(id=>applyOffsets(id, 0, 0));                 // 手动拖动偏移（子树整体平移）
   roots.forEach(id=>computeGeom(id));
+  positionStructuralNodeTextboxes();                         // 节点文本框始终以实际节点为中心
   positionRB();                                             // 反向大括号目标框定位（在右侧）
   // 应用文本框位置
   for(const id in TB){
@@ -2117,7 +2155,7 @@ function reverseBracesSVG(){
     const cy = T ? T._cy : (Math.min(...ys)+Math.max(...ys))/2;       // 无目标时居中于源
     const y0=Math.min(...ys, cy-16), y1=Math.max(...ys, cy+16);
     const sel=(T && selSet.has(rb.target))?'sel':'';
-    s+=`<path class="brace-path ${T?'':'open'} ${sel}" d="${curly(xCusp,xTip,xBase,y0,y1,cy)}"/>`;
+    s+=`<path class="brace-path ${T?'':'open'} ${sel}" data-rev-visual="${rid}" d="${curly(xCusp,xTip,xBase,y0,y1,cy)}"/>`;
     s+=`<path class="brace-hit" data-rev="${rid}" d="${curly(xCusp,xTip,xBase,y0,y1,cy)}"/>`;
   }
   return s;
@@ -2149,7 +2187,7 @@ function drawBraces(){
     const lc = b.locked?'locked':'';
     const sp=selPrimary(); const sc = (sp && TB[sp] && TB[sp].brace===bid)?'sel':'';
     // 主体花括号（正常情况下不画连接线）
-    s+=`<path class="brace-path ${lc} ${sc}" d="${curly(xCusp,xTip,xBase,y0,y1,g.mid)}"/>`;
+    s+=`<path class="brace-path ${lc} ${sc}" data-brace-visual="${bid}" d="${curly(xCusp,xTip,xBase,y0,y1,g.mid)}"/>`;
     // 命中区域（便于右键）
     s+=`<path class="brace-hit" data-brace="${bid}" d="${curly(xCusp,xTip,xBase,y0,y1,g.mid)}"/>`;
     // 智能整理+：子项错位，加连接线标明归属
@@ -2162,17 +2200,19 @@ function drawBraces(){
   svg.innerHTML=s;
   bindBraceHits();
 }
+let braceHitsBound=false;
 function bindBraceHits(){
-  svg.querySelectorAll('.brace-hit').forEach(p=>{
-    if(p.dataset.fg){ const f=p.dataset.fg;
-      p.addEventListener('click',()=>{ if(!readonly && FG[f]) selSet=new Set(FG[f].members), render(), drawBraces(); });
-      return; }
-    const tb = p.dataset.brace ? BR[p.dataset.brace].parentTb
-             : p.dataset.rev   ? RB[p.dataset.rev].target : null;
-    if(tb==null) return;
-    p.addEventListener('contextmenu',e=>{ e.preventDefault(); e.stopPropagation(); selectTb(tb); openMenu(tb,e.clientX,e.clientY); });
-    p.addEventListener('click',()=>{ if(!readonly) selectTb(tb); });
+  if(braceHitsBound) return; braceHitsBound=true;
+  svg.addEventListener('click',e=>{ const p=e.target.closest&&e.target.closest('.brace-hit'); if(!p)return;
+    if(p.dataset.fg){ const f=p.dataset.fg; if(!readonly&&FG[f]){ const prev=new Set(selSet); selSet=new Set(FG[f].members); updateSelectionVisuals(prev); } return; }
+    const tb=p.dataset.brace?(BR[p.dataset.brace]&&BR[p.dataset.brace].parentTb):p.dataset.rev?(RB[p.dataset.rev]&&RB[p.dataset.rev].target):null;
+    if(tb!=null&&!readonly) selectTb(tb);
   });
+  svg.addEventListener('contextmenu',e=>{ const p=e.target.closest&&e.target.closest('.brace-hit'); if(!p||p.dataset.fg)return;
+    const tb=p.dataset.brace?(BR[p.dataset.brace]&&BR[p.dataset.brace].parentTb):p.dataset.rev?(RB[p.dataset.rev]&&RB[p.dataset.rev].target):null;
+    if(tb==null)return;if(p.dataset.brace&&effStruct(tb)!=='brace')return;e.preventDefault();e.stopPropagation();selectTb(tb);openMenu(tb,e.clientX,e.clientY);
+  });
+  svg.addEventListener('contextmenu',e=>{const n=e.target.closest&&e.target.closest('.struct-node');if(!n||readonly)return;e.preventDefault();e.stopPropagation();openStructuralNodeMenu({braceId:n.dataset.nodeBrace,childId:n.dataset.nodeChild},e.clientX,e.clientY);});
 }
 
 //================ 编辑 ================
@@ -2181,6 +2221,7 @@ function startEdit(id){
   if(TB[id] && TB[id]._ghost) return;          // 占位缺口不可编辑
   if(isEditLocked(id)){ flashLocked(id); return; }
   editing=id; selectTb(id);
+  els[id].classList.add('editing-text');
   const inner=els[id]._inner;
   inner.classList.remove('empty');
   inner.setAttribute('contenteditable','true');
@@ -2193,19 +2234,37 @@ function commitEdit(id){
   if(editing!==id) return;
   const inner=els[id]._inner;
   inner.removeAttribute('contenteditable');
+  els[id].classList.remove('editing-text');
   const txt=inner.textContent.replace(/ /g,' ').trim();
   const changed = txt!==TB[id].text;
   TB[id].text=txt;
   editing=null;
-  render(); layout();
+  render([id]); layout();
   if(changed||txt==='') pop(id);
   if(changed) markDirty();
 }
 
 //================ 选中 / 锁 / 菜单 ================
-function selectTb(id){ selSet=new Set([id]); selLink=null; selOverlay=null; render(); drawBraces(); drawOverlays(); if(floatMode) updateFloatBar(true); }
-function toggleSel(id){ if(selSet.has(id)) selSet.delete(id); else selSet.add(id); selOverlay=null; render(); drawBraces(); drawOverlays(); if(floatMode) updateFloatBar(true); }
-function deselect(){ selSet.clear(); selLink=null; selOverlay=null; render(); drawBraces(); drawOverlays(); if(floatMode) updateFloatBar(true); }
+function updateSelectionVisuals(previous){
+  const changed=new Set([...(previous||[]),...selSet]);
+  changed.forEach(id=>{ const e=els[id],t=TB[id]; if(!e||!t)return;
+    e.classList.toggle('sel',selSet.has(id)&&!t._ghost);
+    e.classList.toggle('primary',selSet.size===1&&selSet.has(id)&&!t._ghost); });
+  ovsvg.querySelectorAll('.sel').forEach(e=>e.classList.remove('sel'));overlayLayer.querySelectorAll('.sel').forEach(e=>e.classList.remove('sel'));
+  if(docType==='spider') drawSpider();
+  else {
+    svg.querySelectorAll('[data-brace-visual].sel,[data-rev-visual].sel').forEach(p=>p.classList.remove('sel'));
+    const id=selPrimary(),t=id&&TB[id];
+    if(t){
+      if(t.brace)svg.querySelectorAll('[data-brace-visual]').forEach(p=>{if(p.dataset.braceVisual===t.brace)p.classList.add('sel');});
+      svg.querySelectorAll('[data-rev-visual]').forEach(p=>{const rb=RB[p.dataset.revVisual];if(rb&&rb.target===id)p.classList.add('sel');});
+    }
+  }
+  if(outlineOpen) renderOutlinePartial([...changed]);
+}
+function selectTb(id){ const prev=new Set(selSet); selSet=new Set([id]); selLink=null; selOverlay=null; updateSelectionVisuals(prev); if(floatMode) updateFloatBar(true); }
+function toggleSel(id){ const prev=new Set(selSet); if(selSet.has(id)) selSet.delete(id); else selSet.add(id); selOverlay=null; updateSelectionVisuals(prev); if(floatMode) updateFloatBar(true); }
+function deselect(){ const prev=new Set(selSet); selSet.clear(); selLink=null; selOverlay=null; updateSelectionVisuals(prev); if(floatMode) updateFloatBar(true); }
 
 function toggleLockTb(id){ if(readonly) return; TB[id].locked=!TB[id].locked; if(editing===id) els[id]._inner.blur(); update(); flash(id); markDirty(); }
 function toggleLockBrace(id){
@@ -2357,18 +2416,18 @@ function showHint(slot){ const h=document.getElementById('snapHint'), il=documen
   h.style.display='block'; h.style.left=slot.x+'px'; h.style.top=slot.y+'px'; }
 
 // 浮动反馈
-function pop(id){ const e=els[id]; if(!e)return; const i=e._inner; i.classList.remove('settle'); void i.offsetWidth; i.classList.add('settle'); }
+function pop(id){ const e=els[id]; if(!e)return; const i=e._card.querySelector('.ts-decoration.ts-composite')||e._inner; i.classList.remove('settle'); void i.getBoundingClientRect(); i.classList.add('settle'); }
 function spawn(id){ const e=els[id]; if(!e)return; e.classList.remove('spawn'); void e.offsetWidth; e.classList.add('spawn'); e.addEventListener('animationend',()=>e.classList.remove('spawn'),{once:true}); }
 function flash(id){ const c=els[id]&&els[id]._card; if(!c)return; c.animate([{boxShadow:'0 0 0 3px var(--accent-soft),'+getComputedStyle(c).boxShadow},{boxShadow:'0 0 0 7px rgba(91,141,239,.25)'},{boxShadow:getComputedStyle(c).boxShadow}],{duration:420}); }
 function flashLocked(id){ const c=els[id]&&els[id]._card; if(!c)return; c.animate([{transform:'translateX(0)'},{transform:'translateX(-5px)'},{transform:'translateX(4px)'},{transform:'translateX(-2px)'},{transform:'translateX(0)'}],{duration:260}); }
 
 //================ 右键菜单 ================
 // 每项分 常用(primary)/更多(more)/隐藏(hidden);保护项(逐节点高频、一次设一大堆)不可隐藏
-const CTX_DEFAULTS={ edit:'primary',addChild:'primary',anchor:'primary',marker:'primary',note:'primary',tag:'primary',link:'primary',bg:'primary',todo:'primary',focus:'primary',del:'primary',
+const CTX_DEFAULTS={ edit:'primary',addChild:'primary',textStyle:'primary',anchor:'primary',marker:'primary',note:'primary',tag:'primary',link:'primary',bg:'primary',todo:'primary',focus:'primary',del:'primary',
   addBrace:'more',callout:'more',struct:'more',segAdjust:'more',segReset:'more',lockTb:'more',lockBrace:'more',lockKids:'more',img:'more',imgRemove:'more',task:'more',drill:'more' };
-const CTX_PROTECTED=new Set(['edit','addChild','anchor','marker','note','tag','link','bg','todo']);
-const CTX_LABELS={ edit:'编辑文字',addChild:'添加子文本框',anchor:'添加锚点',addBrace:'添加大括号',marker:'标记',note:'备注',tag:'标签',link:'链接',img:'插入图片',imgRemove:'移除图片',task:'任务信息',drill:'在新画布中展开此分支',callout:'添加标注',struct:'切换此分支结构',segAdjust:'调整节点间距',segReset:'重置节点间距',focus:'聚焦此分支',bg:'背景颜色',todo:'设为代办',lockTb:'锁定文本框',lockBrace:'锁定大括号',lockKids:'锁定子项',del:'删除' };
-const CTX_EDITOR_KEYS=['edit','addChild','addBrace','anchor','marker','note','tag','link','img','imgRemove','task','drill','callout','struct','segAdjust','segReset','focus','bg','todo','lockTb','lockBrace','lockKids','del'];
+const CTX_PROTECTED=new Set(['edit','addChild','textStyle','anchor','marker','note','tag','link','bg','todo']);
+const CTX_LABELS={ edit:'编辑文字',addChild:'添加子文本框',textStyle:'选择文本框样式',anchor:'添加锚点',addBrace:'添加大括号',marker:'标记',note:'备注',tag:'标签',link:'链接',img:'插入图片',imgRemove:'移除图片',task:'任务信息',drill:'在新画布中展开此分支',callout:'添加标注',struct:'切换此分支结构',segAdjust:'调整节点间距',segReset:'重置节点间距',focus:'聚焦此分支',bg:'背景颜色',todo:'设为代办',lockTb:'锁定文本框',lockBrace:'锁定大括号',lockKids:'锁定子项',del:'删除' };
+const CTX_EDITOR_KEYS=['edit','addChild','textStyle','addBrace','anchor','marker','note','tag','link','img','imgRemove','task','drill','callout','struct','segAdjust','segReset','focus','bg','todo','lockTb','lockBrace','lockKids','del'];
 function loadCtxCfg(){ try{ const o=JSON.parse(localStorage.getItem('bmap.ctx')); return (o&&typeof o==='object')?o:{}; }catch(e){ return {}; } }
 let ctxCfg=loadCtxCfg();
 function saveCtxCfg(){ try{ localStorage.setItem('bmap.ctx', JSON.stringify(ctxCfg)); }catch(e){} }
@@ -2415,6 +2474,7 @@ function openMenu(id, cx, cy){
     const editLocked = isEditLocked(id);
     items=[
       {key:'edit',ic:'✎', label:'编辑文字', dis:editLocked, fn:()=>startEdit(id)},
+      {key:'textStyle',ic:'🎨', label:'选择文本框样式…', fn:()=>window.TextStyleFeature&&TextStyleFeature.openForNode(id)},
       {key:'anchor',ic:'⚓', label:'添加锚点', fn:()=>startAddAnchor(id)},
       {key:'marker',ic:'🏷', label:'标记…', fn:()=>openMarkerPanel(id, cx, cy)},
       {key:'note',ic:'📝', label:(t.note?'编辑备注…':'添加备注…'), fn:()=>openNote(id)},
@@ -2436,6 +2496,7 @@ function openMenu(id, cx, cy){
     items=[
       {key:'edit',ic:'✎', label:'编辑文字', dis:editLocked, fn:()=>startEdit(id)},
       {key:'addChild',ic:'＋', label:'添加子文本框', dis:editLocked, fn:()=>addChild(id)},
+      {key:'textStyle',ic:'🎨', label:'选择文本框样式…', fn:()=>window.TextStyleFeature&&TextStyleFeature.openForNode(id)},
       {key:'addBrace',ic:'｛', label:hasBrace?'已有大括号':'添加大括号', dis:hasBrace||editLocked, fn:()=>{ensureBrace(id);addChild(id);}},
       {key:'marker',ic:'🏷', label:'标记…', fn:()=>openMarkerPanel(id, cx, cy)},
       {key:'note',ic:'📝', label:(t.note?'编辑备注…':'添加备注…'), fn:()=>openNote(id)},
@@ -2479,6 +2540,13 @@ function openMenu(id, cx, cy){
   });
   const moreEl=document.getElementById('ctxMoreItem');
   if(moreEl) moreEl.onclick=(ev)=>{ ev.stopPropagation(); openCtx2(moreItems); };
+}
+function openStructuralNodeMenu(ref,cx,cy){
+  const items=[
+    {ic:'▣',label:'在节点上放置文本框',fn:()=>{const sid=window.TextStyleFeature&&TextStyleFeature.getDefaultStyleId?TextStyleFeature.getDefaultStyleId('node'):'';createStructuralNodeTextbox(ref,sid,true);}},
+    {ic:'🎨',label:'选择样式并放置…',fn:()=>{const sid=window.TextStyleFeature&&TextStyleFeature.getDefaultStyleId?TextStyleFeature.getDefaultStyleId('node'):'';const id=createStructuralNodeTextbox(ref,sid,false);if(id&&window.TextStyleFeature)TextStyleFeature.openForNode(id);}}
+  ];
+  ctx.innerHTML=items.map((it,i)=>`<div class="item" data-i="${i}"><span class="ic">${it.ic}</span>${it.label}</div>`).join('');translateNode(ctx);ctx.style.display='block';const w=ctx.offsetWidth,h=ctx.offsetHeight;ctx.style.left=Math.min(cx,innerWidth-w-8)+'px';ctx.style.top=Math.min(cy,innerHeight-h-8)+'px';ctx.querySelectorAll('.item[data-i]').forEach(el=>el.onclick=()=>{closeMenu();items[+el.dataset.i].fn();});
 }
 function openCtx2(list){
   const c2=document.getElementById('ctx2');
@@ -2562,8 +2630,10 @@ function editOverlayText(el, setter){
 // 主绘制：在 layout() 末尾(节点位置已算好后)调用
 function drawOverlays(){
   if(ovEditing) return;
+  if(docType==='spider'){ if(overlayLayer.firstChild)overlayLayer.innerHTML=''; if(ovsvg.firstChild)ovsvg.innerHTML=''; return; }
+  const has=Object.keys(BD).length||Object.keys(SM).length||Object.keys(CO).length||Object.keys(RL).length;
+  if(!has){ if(overlayLayer.firstChild)overlayLayer.innerHTML=''; if(ovsvg.childNodes.length>1||ovsvg.querySelector(':scope > :not(defs)'))ovsvg.innerHTML=''; return; }
   overlayLayer.innerHTML='';
-  if(docType==='spider'){ ovsvg.innerHTML=''; return; }
   ovsvg.innerHTML='<defs><marker id="rlArrow" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">'
                 + '<path d="M0,0 L7,3 L0,6 Z" fill="#e0833b"/></marker></defs>';
   drawBoundaries(); drawSummaries(); drawRelations(); drawCallouts();
@@ -2692,7 +2762,7 @@ function updateFocusBar(){ const bar=document.getElementById('focusBar'); if(!ba
 
 //================ 富节点：标记 / 标签 / 备注 / 链接 ================
 function escH(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-function markDirtySoft(){ dirty=true; refreshFileLabel(); }   // 连续输入时只标脏不存历史，blur 时再 markDirty 存档
+function markDirtySoft(){ modelRevision++;dirty=true; refreshFileLabel(); }   // 连续输入时只标脏不存历史，blur 时再 markDirty 存档
 // 标记定义：优先级(数字徽章) / 进度(饼) / 旗帜星人(emoji) / 符号(emoji)，全部用 CSS+Unicode 自绘，无外部美术
 const MARKER_DEFS={
   p1:{g:'prio',c:'#e3604f',t:'1'}, p2:{g:'prio',c:'#ef8f3c',t:'2'}, p3:{g:'prio',c:'#e9b938',t:'3'},
@@ -2724,14 +2794,19 @@ function markerChip(key, attrs=''){
 }
 function renderExtras(id){
   const t=TB[id], e=els[id]; if(!e) return;
-  if(t._ghost){ e.classList.remove('has-mk','has-tag','has-img','has-task'); e._mkRow.innerHTML=''; e._tagRow.innerHTML=''; e._taskRow.innerHTML=''; return; }
+  if(t._ghost){ e.classList.remove('has-mk','has-tag','has-img','has-task');
+    if(e._mkHtml!==''){ e._mkRow.innerHTML=''; e._mkHtml=''; }
+    if(e._tagHtml!==''){ e._tagRow.innerHTML=''; e._tagHtml=''; }
+    if(e._taskHtml!==''){ e._taskRow.innerHTML=''; e._taskHtml=''; } return; }
   let mk='';
   (t.markers||[]).forEach(k=>{ const ch=markerChip(k, `data-mk="${escH(k)}" title="点击移除标记"`); if(ch) mk+=ch; });
   if(t.note && t.note.trim()) mk+=`<span class="mk emoji" data-note="1" title="查看/编辑备注">📝</span>`;
   if(t.link && t.link.trim()) mk+=`<span class="mk emoji" data-link="1" title="${escH(t.link)}">🔗</span>`;
-  e._mkRow.innerHTML=mk; e.classList.toggle('has-mk', mk!=='');
+  if(e._mkHtml!==mk){ e._mkRow.innerHTML=mk; e._mkHtml=mk; }
+  e.classList.toggle('has-mk', mk!=='');
   let tg=''; (t.tags||[]).forEach((s,i)=>{ tg+=`<span class="tag" data-tag="${i}" title="点击删除标签：${escH(s)}">${escH(s)}</span>`; });
-  e._tagRow.innerHTML=tg; e.classList.toggle('has-tag', tg!=='');
+  if(e._tagHtml!==tg){ e._tagRow.innerHTML=tg; e._tagHtml=tg; }
+  e.classList.toggle('has-tag', tg!=='');
   // 节点图片：宽高写死在属性上，图片未解码完布局也不会跳
   const im=e._imgWrap.firstElementChild;
   if(t.img && t.img.src){
@@ -2750,7 +2825,8 @@ function renderExtras(id){
       parts.push('📅 '+(t.task.start?f(t.task.start):'')+((t.task.start&&t.task.end)?' → ':'')+(t.task.end?f(t.task.end):'')); }
     tk=parts.join('<span class="task-sep">·</span>');
   }
-  e._taskRow.innerHTML=tk; e.classList.toggle('has-task', tk!=='');
+  if(e._taskHtml!==tk){ e._taskRow.innerHTML=tk; e._taskHtml=tk; }
+  e.classList.toggle('has-task', tk!=='');
   if(!e._extrasBound){ e._extrasBound=true;
     e._mkRow.addEventListener('click', ev=>{ ev.stopPropagation();
       const w=ev.target.closest('[data-mk]'); if(w){ if(!readonly) toggleMarker(id, w.dataset.mk); return; }
@@ -2775,10 +2851,10 @@ function toggleMarker(id, key){
     t.markers.push(key);
   }
   if(!t.markers.length) delete t.markers;
-  render(); layout(); markDirty();
+  render([id]); layout(); renderLegend(); markDirty();
   if(markerPanel.classList.contains('open') && mkTarget===id) refreshMarkerPanel();
 }
-function removeTag(id, i){ const t=TB[id]; if(!t||!t.tags) return; t.tags.splice(i,1); if(!t.tags.length) delete t.tags; render(); layout(); markDirty(); }
+function removeTag(id, i){ const t=TB[id]; if(!t||!t.tags) return; t.tags.splice(i,1); if(!t.tags.length) delete t.tags; render([id]); layout(); markDirty(); }
 // ----- 标签编辑弹层（替代 prompt）：已有标签=可删 chip，输入回车/逗号添加 -----
 const tagPanel=document.getElementById('tagPanel');
 const tagInput=document.getElementById('tagInput');
@@ -2801,7 +2877,7 @@ function refreshTagChips(){
 function commitTagInput(){
   const t=TB[tagTarget]; if(!t) return;
   const arr=tagInput.value.split(/[,，]/).map(s=>s.trim()).filter(Boolean);
-  if(arr.length){ t.tags=(t.tags||[]).concat(arr.filter(s=>!(t.tags||[]).includes(s))); render(); layout(); markDirty(); }
+  if(arr.length){ t.tags=(t.tags||[]).concat(arr.filter(s=>!(t.tags||[]).includes(s))); render([tagTarget]); layout(); markDirty(); }
   tagInput.value=''; refreshTagChips();
 }
 tagInput.addEventListener('keydown',e=>{ e.stopPropagation();
@@ -2828,7 +2904,7 @@ function openLinkPanel(id, cx, cy){
   setTimeout(()=>linkInput.focus(),30);
 }
 function saveLink(){ const t=TB[linkTarget]; if(!t) return; const s=linkInput.value.trim();
-  if(s) t.link=s; else delete t.link; render(); layout(); markDirty(); }
+  if(s) t.link=s; else delete t.link; render([linkTarget]); layout(); markDirty(); }
 function closeLinkPanel(commit){ if(commit!==false && linkTarget) saveLink(); linkPanel.classList.remove('open'); linkTarget=null; }
 linkInput.addEventListener('keydown',e=>{ e.stopPropagation();
   if(e.key==='Enter'){ e.preventDefault(); closeLinkPanel(true); }
@@ -2896,7 +2972,7 @@ function openNote(id){
 }
 function saveNote(){
   if(noteTarget==null){ closeNote(); return; }
-  if(!readonly){ const t=TB[noteTarget]; if(t){ const v=noteArea.value; if(v.trim()) t.note=v; else delete t.note; render(); layout(); markDirty(); } }
+  if(!readonly){ const t=TB[noteTarget]; if(t){ const v=noteArea.value; if(v.trim()) t.note=v; else delete t.note; render([noteTarget]); layout(); markDirty(); } }
   closeNote();
 }
 function closeNote(){ noteMask.classList.remove('open'); noteTarget=null; }
@@ -2925,7 +3001,7 @@ function applyImageFile(id, file){                       // 供 文件选择 / �
       const dw=Math.min(cw,220), dh=Math.max(1,Math.round(dw*ch/cw));   // 节点内显示尺寸
       if(!TB[id]) return;
       TB[id].img={src, w:dw, h:dh};
-      render(); layout(); markDirty();
+      render([id]); layout(); markDirty();
     };
     img.onerror=()=>alert(t('无法读取这张图片'));
     img.src=rd.result;
@@ -2938,7 +3014,7 @@ function pickImage(id){
   inp.onchange=()=>{ const f=inp.files && inp.files[0]; if(f) applyImageFile(id, f); };
   inp.click();
 }
-function removeImage(id){ const tb=TB[id]; if(!tb||!tb.img) return; delete tb.img; render(); layout(); markDirty(); }
+function removeImage(id){ const tb=TB[id]; if(!tb||!tb.img) return; delete tb.img; render([id]); layout(); markDirty(); }
 // Ctrl+V 把剪贴板里的图片贴到当前选中的单个节点上
 window.addEventListener('paste', e=>{
   if(readonly || editing) return;
@@ -2951,9 +3027,9 @@ window.addEventListener('paste', e=>{
 
 // ----- 任务信息面板：负责人 / 进度 / 起止日期（甘特图的数据底座） -----
 const taskPanel=document.getElementById('taskPanel');
-let tkTarget=null;
+let tkTarget=null, taskChanged=false;
 function openTaskPanel(id, cx, cy){
-  if(readonly || !TB[id]) return; tkTarget=id;
+  if(readonly || !TB[id]) return; tkTarget=id; taskChanged=false;
   const k=TB[id].task||{};
   document.getElementById('tpWho').value = k.who||'';
   document.getElementById('tpProg').value = (typeof k.prog==='number')?k.prog:0;
@@ -2981,12 +3057,12 @@ function applyTask(progTouched){
   if(start) k.start=start;
   if(end) k.end=end;
   if(Object.keys(k).length) tb.task=k; else delete tb.task;
-  render(); layout(); markDirtySoft();
+  taskChanged=true; render([tkTarget]); layout(); markDirtySoft();
 }
 function closeTaskPanel(commit){
   if(!taskPanel.classList.contains('open')) return;
   taskPanel.classList.remove('open');
-  if(commit!==false && tkTarget && dirty) pushHistory();   // 关面板时一次性入撤销栈
+  if(commit!==false && tkTarget && taskChanged) pushHistory();   // 关面板时一次性入撤销栈
   tkTarget=null;
 }
 document.getElementById('tpWho').addEventListener('input', ()=>applyTask(false));
@@ -2994,7 +3070,7 @@ document.getElementById('tpProg').addEventListener('input', ()=>applyTask(true))
 document.getElementById('tpStart').addEventListener('change', ()=>applyTask(false));
 document.getElementById('tpEnd').addEventListener('change', ()=>applyTask(false));
 document.getElementById('tpDone').onclick=()=>closeTaskPanel(true);
-document.getElementById('tpClear').onclick=()=>{ const tb=TB[tkTarget]; if(tb&&tb.task){ delete tb.task; render(); layout(); markDirty(); }
+document.getElementById('tpClear').onclick=()=>{ const tb=TB[tkTarget]; if(tb&&tb.task){ delete tb.task; taskChanged=true; render([tkTarget]); layout(); markDirty(); }
   document.getElementById('tpWho').value=''; document.getElementById('tpProg').value=0;
   document.getElementById('tpProgVal').textContent='—'; document.getElementById('tpStart').value=''; document.getElementById('tpEnd').value=''; };
 taskPanel.addEventListener('keydown',e=>{ e.stopPropagation();
@@ -3077,6 +3153,30 @@ function toggleOutline(force){
   const btn=document.getElementById('outlineBtn'); if(btn) btn.classList.toggle('toggle-on', outlineOpen);
   if(outlineOpen) renderOutline();
 }
+function outlineMetaHTML(t){
+  let mk=''; (t.markers||[]).forEach(k=>{ const ch=markerChip(k); if(ch) mk+='<span class="ol-mkc">'+ch+'</span>'; });
+  if(t.img) mk+='<span class="ol-mk">🖼</span>';
+  if(t.task){ mk+='<span class="ol-mk">📋</span>'; if(typeof t.task.prog==='number') mk+=`<span class="ol-prog">${t.task.prog}%</span>`; }
+  if(t.note) mk+='<span class="ol-mk">📝</span>'; if(t.link) mk+='<span class="ol-mk">🔗</span>';
+  (t.tags||[]).forEach(s=>{ mk+=`<span class="ol-tag">${escH(s)}</span>`; });
+  return mk;
+}
+function renderOutlinePartial(ids){
+  if(!outlineOpen || docType==='spider') return;
+  for(const id of ids){
+    const t=TB[id], row=outlineBody.querySelector(`.ol-row[data-id="${id}"]`);
+    if(!t || t._ghost || !row){ renderOutline(); return; }
+    const txt=row.querySelector('.ol-text');
+    if(txt && document.activeElement!==txt && txt.textContent!==t.text) txt.textContent=t.text;
+    row.classList.toggle('sel',selSet.has(id)); row.classList.toggle('done',!!(t.todo&&t.done));
+    const chk=row.querySelector('.ol-check');
+    if(!!chk!==!!t.todo){ renderOutline(); return; }
+    if(chk) chk.classList.toggle('done',!!t.done);
+    const num=row.querySelector('.ol-num'); if(num && num.textContent!==(t._num||'')) num.textContent=t._num||'';
+    const meta=row.querySelector('.ol-meta'), html=outlineMetaHTML(t);
+    if(meta && meta._html!==html){ meta.innerHTML=html; meta._html=html; }
+  }
+}
 function renderOutline(){
   if(!outlineOpen) return;
   if(docType==='spider'){ outlineBody.innerHTML='<div class="ol-empty">大纲视图针对大括号思维导图的层级结构。<br>蜘蛛网为自由连线，暂不提供大纲。</div>'; return; }
@@ -3089,16 +3189,12 @@ function renderOutline(){
     const b=t.brace?BR[t.brace]:null;
     const kids=b?b.children.filter(c=>TB[c]&&!TB[c]._ghost):[];
     const coll=olCollapsed.has(id);
-    let mk=''; (t.markers||[]).forEach(k=>{ const ch=markerChip(k); if(ch) mk+='<span class="ol-mkc">'+ch+'</span>'; });
-    if(t.img) mk+='<span class="ol-mk">🖼</span>';
-    if(t.task){ mk+='<span class="ol-mk">📋</span>'; if(typeof t.task.prog==='number') mk+=`<span class="ol-prog">${t.task.prog}%</span>`; }
-    if(t.note) mk+='<span class="ol-mk">📝</span>'; if(t.link) mk+='<span class="ol-mk">🔗</span>';
-    (t.tags||[]).forEach(s=>{ mk+=`<span class="ol-tag">${escH(s)}</span>`; });
+    const mk=outlineMetaHTML(t);
     const num=t._num?`<span class="ol-num">${escH(t._num)}</span>`:'';
     const chk=t.todo?`<span class="ol-check ${t.done?'done':''}" data-check="${id}" title="代办：点击打勾/取消"></span>`:'';
     html+=`<div class="ol-row ${sel?'sel':''} ${done?'done':''}" data-id="${id}" style="padding-left:${8+depth*16}px">`+
           `<span class="ol-tw ${kids.length?'':'none'}" data-tw="${id}" title="${coll?'展开':'折叠'}">${coll?'▸':'▾'}</span>`+
-          `<span class="ol-bullet"></span>${chk}${num}<span class="ol-text" data-id="${id}" ${readonly?'':'contenteditable="true"'}>${escH(t.text)}</span>${mk}</div>`;
+          `<span class="ol-bullet"></span>${chk}${num}<span class="ol-text" data-id="${id}" ${readonly?'':'contenteditable="true"'}>${escH(t.text)}</span><span class="ol-meta">${mk}</span></div>`;
     if(kids.length && !coll) kids.forEach(c=>walk(c,depth+1));
   };
   roots.forEach(r=>walk(r,0));
@@ -3273,7 +3369,7 @@ function openColorPanel(ids, cx, cy){
   colorPanel.querySelector('.cp-preview').style.background=cur||'#fff';
 }
 function closeColorPanel(){ colorPanel.classList.remove('open'); }
-function setBgIdsNoDirty(ids,color){ ids.forEach(i=>{ if(TB[i]){ if(color) TB[i].bg=color; else delete TB[i].bg; } }); render(); }
+function setBgIdsNoDirty(ids,color){ ids.forEach(i=>{ if(TB[i]){ if(color) TB[i].bg=color; else delete TB[i].bg; } }); render(ids); }
 function applyCP(color, commit){
   setBgIdsNoDirty(cpTargets,color);
   colorPanel.querySelector('.cp-preview').style.background=color||'#fff';
@@ -3299,7 +3395,7 @@ document.addEventListener('pointerdown',e=>{ const sp=document.getElementById('s
 //================ 文件：新建 / 打开 / 保存 / 另存为 ================
 const isDesktop = !!(window.api && window.api.isDesktop);
 
-function markDirty(){ dirty=true; refreshFileLabel(); pushHistory(); }
+function markDirty(){ modelRevision++;dirty=true; refreshFileLabel(); pushHistory(); }
 function refreshFileLabel(){
   const el=document.getElementById('fname');
   if(el.getAttribute('contenteditable')!=='true') el.textContent=t(curName);
@@ -3307,45 +3403,85 @@ function refreshFileLabel(){
   document.title=(dirty?'• ':'')+curName+' — ThoughtCanvas';
 }
 
-// ---- 多画布核心：sheetData()=活动画布导出为干净数据；hydrate()=数据灌回全局 ----
+// ---- 多画布核心：活动页直接引用模型；非活动页保留少量 DOM 缓存，其余压成惰性 JSON ----
+function clonePlain(v){
+  if(Array.isArray(v)) return v.map(clonePlain);
+  if(v&&typeof v==='object'){ const o={}; for(const k of Object.keys(v)) o[k]=clonePlain(v[k]); return o; }
+  return v;
+}
 function captureViewFull(){ return {scale,panX,panY,compactMode,numbering,spiderTidyOn,spiderTidyMode,spiderSpacing,timelineSpacing,structGap:Object.assign({},structGap)}; }
-function sheetData(forHistory){   // forHistory=true → 去掉缩放/平移，避免平移进撤销栈
-  const tb={};
-  for(const id in TB){const t=TB[id];
-    tb[id]={id:t.id,text:t.text,locked:t.locked,parentBrace:t.parentBrace,brace:t.brace,x:t.x,y:t.y,bg:t.bg,anchors:t.anchors,autoAnchors:t.autoAnchors,todo:t.todo,done:t.done,markers:t.markers,tags:t.tags,note:t.note,link:t.link,img:t.img,task:t.task,struct:t.struct,_seg:t._seg,_ghost:t._ghost,_offX:t._offX,_offY:t._offY};}
-  const br={};
-  for(const id in BR){const b=BR[id]; br[id]={id:b.id,locked:b.locked,parentTb:b.parentTb,children:b.children.slice()};}
-  const rb={};
-  for(const id in RB){const r=RB[id]; rb[id]={id:r.id,sources:r.sources.slice(),target:r.target};}
-  const fg={};
-  for(const id in FG){const g=FG[id]; fg[id]={id:g.id,members:g.members.slice()};}
-  const lk={};
-  for(const id in LK){const l=LK[id]; lk[id]={id:l.id,a:l.a,aAng:l.aAng,b:l.b,bAng:l.bAng,locked:l.locked,mode:l.mode,nodes:l.nodes,text:l.text,tx:l.tx,ty:l.ty,dist:l.dist};}
-  const view = forHistory
-    ? {compactMode,numbering,spiderTidyOn,spiderTidyMode,spiderSpacing,timelineSpacing,structGap:Object.assign({},structGap)}
-    : captureViewFull();
-  return {name:curSheetName, docType, idc, focusId, roots:roots.slice(),
-    textboxes:tb, braces:br, rbraces:rb, fgroups:fg, links:lk, ...dumpExtras(),
-    customMarkers:customMarkers.slice(), legend:legendDump(), view};
+function activeSheetObject(){ return {name:curSheetName,docType,idc,focusId,roots,textboxes:TB,braces:BR,rbraces:RB,fgroups:FG,links:LK,
+  boundaries:BD,summaries:SM,callouts:CO,relations:RL,customMarkers,legend:legendDump(),view:captureViewFull()}; }
+function cleanSheetObject(d,forHistory){
+  d=d||{}; const tb={},br={},rb={},fg={},lk={},bd={},sm={},co={},rl={};
+  for(const id in (d.textboxes||{})){ const t=d.textboxes[id]; tb[id]={id:t.id,text:t.text,locked:t.locked,parentBrace:t.parentBrace,brace:t.brace,x:t.x,y:t.y,bg:t.bg,
+    anchors:clonePlain(t.anchors),autoAnchors:clonePlain(t.autoAnchors),todo:t.todo,done:t.done,markers:clonePlain(t.markers),tags:clonePlain(t.tags),note:t.note,link:t.link,
+    img:clonePlain(t.img),task:clonePlain(t.task),struct:t.struct,textStyleId:t.textStyleId,textStyle:clonePlain(t.textStyle),textStylePlacement:t.textStylePlacement,textFormat:clonePlain(t.textFormat),
+    textSizing:clonePlain(t.textSizing),textRules:clonePlain(t.textRules),_textSizingOverride:t._textSizingOverride,_textRulesOverride:t._textRulesOverride,_nodeAttach:clonePlain(t._nodeAttach),_seg:t._seg,_ghost:t._ghost,_offX:t._offX,_offY:t._offY}; }
+  for(const id in (d.braces||{})){ const b=d.braces[id]; br[id]={id:b.id,locked:b.locked,parentTb:b.parentTb,children:(b.children||[]).slice()}; }
+  for(const id in (d.rbraces||{})){ const r=d.rbraces[id]; rb[id]={id:r.id,sources:(r.sources||[]).slice(),target:r.target}; }
+  for(const id in (d.fgroups||{})){ const g=d.fgroups[id]; fg[id]={id:g.id,members:(g.members||[]).slice()}; }
+  for(const id in (d.links||{})){ const l=d.links[id]; lk[id]={id:l.id,a:l.a,aAng:l.aAng,b:l.b,bAng:l.bAng,locked:l.locked,mode:l.mode,nodes:clonePlain(l.nodes),text:l.text,tx:l.tx,ty:l.ty,dist:l.dist}; }
+  for(const id in (d.boundaries||{})){ const x=d.boundaries[id]; bd[id]={id:x.id,members:(x.members||[]).slice(),label:x.label,color:x.color}; }
+  for(const id in (d.summaries||{})){ const x=d.summaries[id]; sm[id]={id:x.id,members:(x.members||[]).slice(),text:x.text}; }
+  for(const id in (d.callouts||{})){ const x=d.callouts[id]; co[id]={id:x.id,tb:x.tb,text:x.text,color:x.color}; }
+  for(const id in (d.relations||{})){ const x=d.relations[id]; rl[id]={id:x.id,a:x.a,b:x.b,text:x.text}; }
+  const v=d.view||{}, view=forHistory
+    ? {compactMode:v.compactMode||0,numbering:typeof v.numbering==='string'?v.numbering:'',spiderTidyOn:!!v.spiderTidyOn,spiderTidyMode:v.spiderTidyMode||'',spiderSpacing:v.spiderSpacing,timelineSpacing:v.timelineSpacing,structGap:clonePlain(v.structGap||{})}
+    : clonePlain(v);
+  return {name:(d.name&&(''+d.name).trim())||'画布 1',docType:d.docType||'brace',idc:d.idc||0,focusId:d.focusId||null,roots:(d.roots||[]).slice(),
+    textboxes:tb,braces:br,rbraces:rb,fgroups:fg,links:lk,boundaries:bd,summaries:sm,callouts:co,relations:rl,
+    customMarkers:clonePlain(d.customMarkers||[]),legend:clonePlain(d.legend||{on:false,x:null,y:null,texts:{}}),view};
 }
-// 把一个数据对象灌回全局（不动缩放/平移；居中/恢复视图由调用方决定）
-function hydrate(d){
-  nodesL.innerHTML=''; svg.innerHTML=''; for(const k in els) delete els[k];
-  TB=d.textboxes||{}; BR=d.braces||{}; RB=d.rbraces||{}; FG=d.fgroups||{}; LK=d.links||{}; roots=(d.roots||[]).filter(id=>TB[id]);
-  loadExtras(d);
-  customMarkers=Array.isArray(d.customMarkers)?d.customMarkers.slice():[]; loadLegend(d);
-  idc=d.idc||0; selSet.clear(); selLink=null; selOverlay=null; editing=null; olEditing=null; olFocusId=null;
-  focusId=(d.focusId && (d.textboxes||{})[d.focusId])?d.focusId:null;
-  curSheetName=(d.name && (''+d.name).trim()) || '画布 1';
-  docType = d.docType||'brace';
-  const v=d.view||{};
-  compactMode = (v.compactMode===3?0:(v.compactMode || (v.compact?1:0)))||0;
-  numbering = (typeof v.numbering==='string') ? v.numbering : numbering;   // 未指定则沿用当前
-  spiderTidyOn=!!v.spiderTidyOn; if(v.spiderSpacing) spiderSpacing=v.spiderSpacing; if(v.timelineSpacing) timelineSpacing=v.timelineSpacing;
-  structGap = (v.structGap && typeof v.structGap==='object') ? v.structGap : {};
-  spiderTidyMode = v.spiderTidyMode || (spiderTidyOn?'radial':'');
-  applyDocType(); updateTidyBtn(); recomputeFocus(); update();
+function sheetData(forHistory){ return cleanSheetObject(activeSheetObject(),!!forHistory); }
+
+let sheetKeySeq=0, sheetRuntimeCache=new Map(), sheetLastUsed=new Map(), sheetEvictHandle=0;
+const SHEET_CACHE_LIMIT=4;
+function ensureSheetKey(d,key){ if(!d)return ''; if(!d.__sheetKey)Object.defineProperty(d,'__sheetKey',{value:key||('sheet-'+(++sheetKeySeq)),writable:true,configurable:true}); return d.__sheetKey; }
+function isLazySheet(d){ return !!(d&&typeof d.__lazyJson==='string'); }
+function touchSheet(d){ const k=ensureSheetKey(d); sheetLastUsed.set(k,performance.now()+sheetKeySeq/1000); }
+function lazySheet(d){ const key=ensureSheetKey(d),clean=cleanSheetObject(d,false),p={name:clean.name,docType:clean.docType,__lazyJson:JSON.stringify(clean)}; ensureSheetKey(p,key); return p; }
+function materializeSheet(i){ const s=sheets[i]; if(!isLazySheet(s)){ ensureSheetKey(s); touchSheet(s); return s; }
+  const key=ensureSheetKey(s); const d=JSON.parse(s.__lazyJson); ensureSheetKey(d,key); sheets[i]=d; touchSheet(d); return d; }
+function evictSheetsToLimit(deadline){
+  const material=sheets.map((s,i)=>({s,i})).filter(x=>x.i!==curSheet&&!isLazySheet(x.s));
+  material.sort((a,b)=>(sheetLastUsed.get(ensureSheetKey(a.s))||0)-(sheetLastUsed.get(ensureSheetKey(b.s))||0));
+  let count=sheets.filter(s=>!isLazySheet(s)).length,evicted=0;
+  while(count>SHEET_CACHE_LIMIT&&material.length){const x=material.shift(),key=ensureSheetKey(x.s);sheetRuntimeCache.delete(key);sheets[x.i]=lazySheet(x.s);count--;evicted++;
+    if(evicted>=4&&deadline&&deadline.timeRemaining&&deadline.timeRemaining()<3)break;}
+  return count;
 }
+function scheduleSheetEviction(){
+  if(sheetEvictHandle)return;
+  const run=deadline=>{ sheetEvictHandle=0;
+    if(evictSheetsToLimit(deadline)>SHEET_CACHE_LIMIT)scheduleSheetEviction();
+  };
+  sheetEvictHandle=typeof requestIdleCallback==='function'?requestIdleCallback(run,{timeout:600}):setTimeout(()=>run(null),40);
+}
+function moveChildrenToFragment(el){ const f=document.createDocumentFragment(); while(el.firstChild)f.appendChild(el.firstChild); return f; }
+function clearActiveDom(){ nodesL.innerHTML='';svg.innerHTML='';ovsvg.innerHTML='';overlayLayer.innerHTML=''; const lg=document.getElementById('legendBox');if(lg)lg.remove();for(const k in els)delete els[k]; }
+function bindSheetData(d){
+  TB=d.textboxes||(d.textboxes={});BR=d.braces||(d.braces={});RB=d.rbraces||(d.rbraces={});FG=d.fgroups||(d.fgroups={});LK=d.links||(d.links={});roots=(d.roots||[]).filter(id=>TB[id]);d.roots=roots;
+  loadExtras(d);customMarkers=Array.isArray(d.customMarkers)?d.customMarkers:(d.customMarkers=[]);loadLegend(d);
+  idc=d.idc||0;selSet.clear();selLink=null;selOverlay=null;editing=null;olEditing=null;olFocusId=null;
+  focusId=(d.focusId&&TB[d.focusId])?d.focusId:null;curSheetName=(d.name&&(''+d.name).trim())||'画布 1';docType=d.docType||'brace';
+  const v=d.view||{};compactMode=(v.compactMode===3?0:(v.compactMode||(v.compact?1:0)))||0;
+  numbering=typeof v.numbering==='string'?v.numbering:numbering;spiderTidyOn=!!v.spiderTidyOn;if(v.spiderSpacing)spiderSpacing=v.spiderSpacing;if(v.timelineSpacing)timelineSpacing=v.timelineSpacing;
+  structGap=(v.structGap&&typeof v.structGap==='object')?v.structGap:{};spiderTidyMode=v.spiderTidyMode||(spiderTidyOn?'radial':'');
+  applyDocType();updateTidyBtn();recomputeFocus();
+}
+function hydrate(d){ clearActiveDom();bindSheetData(d);update(); }
+function cacheActiveSheetRuntime(){
+  const d=sheets[curSheet];if(!d||isLazySheet(d))return;syncActiveSheet();
+  if(docType==='spider'){selSet.clear();selLink=null;selLinkNode=null;drawSpider();}
+  else {nodesL.querySelectorAll('.sel,.primary').forEach(e=>e.classList.remove('sel','primary'));svg.querySelectorAll('.sel').forEach(e=>e.classList.remove('sel'));}
+  ovsvg.querySelectorAll('.sel').forEach(e=>e.classList.remove('sel'));overlayLayer.querySelectorAll('.sel').forEach(e=>e.classList.remove('sel'));
+  const lg=document.getElementById('legendBox');if(lg)lg.remove();const map={};for(const k in els){map[k]=els[k];delete els[k];}
+  sheetRuntimeCache.set(ensureSheetKey(d),{nodes:moveChildrenToFragment(nodesL),svg:moveChildrenToFragment(svg),ovsvg:moveChildrenToFragment(ovsvg),overlay:moveChildrenToFragment(overlayLayer),els:map});touchSheet(d);
+}
+function restoreCachedRuntime(d){ const key=ensureSheetKey(d),rt=sheetRuntimeCache.get(key);if(!rt)return false;clearActiveDom();bindSheetData(d);
+  nodesL.appendChild(rt.nodes);svg.appendChild(rt.svg);ovsvg.appendChild(rt.ovsvg);overlayLayer.appendChild(rt.overlay);Object.assign(els,rt.els);sheetRuntimeCache.delete(key);
+  document.getElementById('empty').style.display=roots.length?'none':'flex';renderLegend();if(outlineOpen)renderOutline();updateFocusBar();return true; }
 function newSheetData(dtype, initStruct, name){
   const d={name:name||('画布 '+(sheets.length+1)), docType:dtype||'brace', idc:0, focusId:null, roots:[],
     textboxes:{}, braces:{}, rbraces:{}, fgroups:{}, links:{}, boundaries:{}, summaries:{}, callouts:{}, relations:{},
@@ -3356,81 +3492,93 @@ function newSheetData(dtype, initStruct, name){
     if(initStruct!=='brace') d.textboxes[rid].struct=initStruct;
     d.roots=[rid];
   }
-  return d;
+  ensureSheetKey(d); return d;
 }
-function syncActiveSheet(){ if(sheets[curSheet]) sheets[curSheet]=sheetData(false); }
+function syncActiveSheet(){ const d=sheets[curSheet];if(!d||isLazySheet(d))return;
+  d.name=curSheetName;d.docType=docType;d.idc=idc;d.focusId=focusId;d.roots=roots;d.textboxes=TB;d.braces=BR;d.rbraces=RB;d.fgroups=FG;d.links=LK;
+  d.boundaries=BD;d.summaries=SM;d.callouts=CO;d.relations=RL;d.customMarkers=customMarkers;d.legend=legendDump();d.view=captureViewFull();touchSheet(d); }
 function restoreSheetView(d){ const v=d.view||{};
   if(typeof v.scale==='number'){ scale=v.scale; panX=v.panX||0; panY=v.panY||0; applyTransform(); }
   else { scale=1; centerContent(); } }
 
 // 把当前模型序列化为干净 JSON（多画布 version:2；单画布向后兼容）
+function serializedSheetAt(i){ const s=sheets[i];return isLazySheet(s)?s.__lazyJson:JSON.stringify(cleanSheetObject(s,false)); }
 function serialize(){
   syncActiveSheet();
+  const chunks=sheets.map((s,i)=>serializedSheetAt(i));
   // aiChat：把生成/修改这张图的 AI 对话记录一起存进文件（文件级；再次打开可回看/续聊）
-  return JSON.stringify({app:'brace-mindmap', version:2, name:curName, curSheet, sheets, aiChat:aiChatForSave()}, null, 1);
+  return `{"app":"brace-mindmap","version":2,"name":${JSON.stringify(curName)},"curSheet":${curSheet},"sheets":[${chunks.join(',')}],"aiChat":${JSON.stringify(aiChatForSave())}}`;
 }
-function loadData(text, fallbackName){
-  let d; try{ d=JSON.parse(text); }catch(e){ alert('文件格式无法识别'); return false; }
+function applyLoadedDocument(d,fallbackName){
   if(!d || d.app!=='brace-mindmap'){ alert('这不是有效的思维导图文件'); return false; }
+  modelRevision++;
   if(Array.isArray(d.sheets) && d.sheets.length){ sheets=d.sheets; curSheet=Math.min(d.curSheet||0, sheets.length-1); }
   else { sheets=[d]; curSheet=0; }                        // 旧格式：整个 d 就是一张画布
+  sheetRuntimeCache=new Map();sheetLastUsed=new Map();sheets.forEach(s=>ensureSheetKey(s));
   curName = (d.name && (''+d.name).trim()) || fallbackName || '未命名思维导图';
   olCollapsed.clear();
-  hydrate(sheets[curSheet]);
-  scale = (sheets[curSheet].view && sheets[curSheet].view.scale) ? sheets[curSheet].view.scale : 1;
-  centerContent();
-  renderSheetTabs(); initHistory();
+  const active=materializeSheet(curSheet);hydrate(active);
+  scale=(active.view&&active.view.scale)?active.view.scale:1;centerContent();
+  renderSheetTabs(true); initHistory();scheduleSheetEviction();
   aiLoadChat(d.aiChat);                                    // 恢复随文件保存的 AI 对话记录
   return true;
 }
+function parseJsonAsync(text){
+  if(typeof Worker==='undefined'||String(text).length<262144)return new Promise((resolve,reject)=>setTimeout(()=>{try{resolve(JSON.parse(text));}catch(e){reject(e);}},0));
+  return new Promise((resolve,reject)=>{const src='onmessage=e=>{try{postMessage({ok:true,data:JSON.parse(e.data)})}catch(x){postMessage({ok:false,error:x.message})}}';
+    const url=URL.createObjectURL(new Blob([src],{type:'text/javascript'})),w=new Worker(url);w.onmessage=e=>{w.terminate();URL.revokeObjectURL(url);e.data.ok?resolve(e.data.data):reject(new Error(e.data.error));};
+    w.onerror=e=>{w.terminate();URL.revokeObjectURL(url);reject(e.error||new Error(e.message));};w.postMessage(text);});
+}
+async function loadDataAsync(text,fallbackName){try{return applyLoadedDocument(await parseJsonAsync(text),fallbackName);}catch(e){alert('文件格式无法识别');return false;}}
 // ---- 多画布：新增 / 切换 / 删除 / 改名 ----
 function switchSheet(i){
   if(i===curSheet || i<0 || i>=sheets.length) return;
   if(editing && els[editing]) els[editing]._inner.blur();
-  syncActiveSheet(); olCollapsed.clear();
-  curSheet=i; hydrate(sheets[i]); restoreSheetView(sheets[i]);
-  renderSheetTabs(); initHistory(); refreshFileLabel();
+  if(editLinkLabel)finishEditLinkText(true);cancelAddAnchor();cancelAddLinkNode();const old=curSheet;cacheActiveSheetRuntime();olCollapsed.clear();
+  curSheet=i;const d=materializeSheet(i);if(!restoreCachedRuntime(d))hydrate(d);restoreSheetView(d);
+  setActiveSheetTab(old,i);initHistory();refreshFileLabel();scheduleSheetEviction();
 }
 function addSheet(dtype, initStruct){
   if(readonly) return;
   cancelAddAnchor(); cancelAddLinkNode();
-  syncActiveSheet(); olCollapsed.clear();
+  cacheActiveSheetRuntime(); olCollapsed.clear();
   const d=newSheetData(dtype||'brace', initStruct); sheets.push(d); curSheet=sheets.length-1;
   hydrate(d); scale=1;
   const rid=d.roots[0]; if(rid){ selectTb(rid); centerContent(); } else centerWorld(3000,1800);
-  renderSheetTabs(); initHistory(); markDirty();
+  renderSheetTabs(true); initHistory(); markDirty();scheduleSheetEviction();
 }
 function deleteSheet(i){
   if(readonly || sheets.length<=1 || !sheets[i]) return;
   if(!confirm(t('删除这张画布？（本操作不可撤销）'))) return;
-  const wasActive=(i===curSheet);
+  const wasActive=(i===curSheet),removed=sheets[i],removedKey=ensureSheetKey(removed);if(wasActive)syncActiveSheet();
   sheets.splice(i,1);
+  sheetRuntimeCache.delete(removedKey);sheetLastUsed.delete(removedKey);
   if(curSheet>i) curSheet--; else if(curSheet===i) curSheet=Math.min(i, sheets.length-1);
-  if(wasActive){ olCollapsed.clear(); hydrate(sheets[curSheet]); restoreSheetView(sheets[curSheet]); initHistory(); }
-  renderSheetTabs(); markDirty();
+  if(wasActive){ olCollapsed.clear();const d=materializeSheet(curSheet);hydrate(d);restoreSheetView(d);initHistory(); }
+  renderSheetTabs(true); markDirty();scheduleSheetEviction();
 }
 function renameSheet(i, name){
-  if(readonly || !sheets[i]) return; const nm=(name||'').trim(); if(!nm){ renderSheetTabs(); return; }
-  sheets[i].name=nm; if(i===curSheet) curSheetName=nm; renderSheetTabs(); markDirty();
+  if(readonly || !sheets[i]) return; const nm=(name||'').trim(); if(!nm){ updateSheetTab(i); return; }
+  const d=materializeSheet(i);d.name=nm;if(i===curSheet)curSheetName=nm;updateSheetTab(i);markDirty();scheduleSheetEviction();
 }
 function sheetLabel(s,i){ return (s && s.name && (''+s.name).trim()) || ('画布 '+(i+1)); }
-function renderSheetTabs(){
-  const list=document.getElementById('sheetTabList'); if(!list) return;
-  list.innerHTML=sheets.map((s,i)=>{ const nm=escH(sheetLabel(s,i)); const dt=(s.docType==='spider')?'🕸':'🗂';
-    return `<div class="sheet-tab ${i===curSheet?'active':''}" data-i="${i}" title="${nm}"><span class="st-dt">${dt}</span>`
-      +`<span class="st-name" data-i="${i}">${nm}</span>`
-      +(sheets.length>1?`<span class="st-x" data-x="${i}" title="删除画布">✕</span>`:'')+`</div>`; }).join('');
-  list.querySelectorAll('.sheet-tab').forEach(tab=>{ const i=+tab.dataset.i;
-    tab.addEventListener('pointerdown',e=>{ if(e.target.closest('.st-x')||e.target.closest('[contenteditable]')) return; if(i!==curSheet) switchSheet(i); });
-    tab.addEventListener('dblclick',e=>{ e.stopPropagation(); startRenameSheet(i, tab.querySelector('.st-name')); }); });
-  list.querySelectorAll('.st-x').forEach(x=> x.addEventListener('click',e=>{ e.stopPropagation(); deleteSheet(+x.dataset.x); }));
+const sheetTabList=document.getElementById('sheetTabList');let sheetTabEls=[];
+function updateSheetTab(i){ const el=sheetTabEls[i],s=sheets[i];if(!el||!s)return;const nm=sheetLabel(s,i);el.title=nm;el.classList.toggle('active',i===curSheet);el.querySelector('.st-dt').textContent=s.docType==='spider'?'🕸':'🗂';const n=el.querySelector('.st-name');if(n&&n.getAttribute('contenteditable')!=='true')n.textContent=nm; }
+function setActiveSheetTab(oldI,newI){ if(sheetTabEls[oldI])sheetTabEls[oldI].classList.remove('active');if(sheetTabEls[newI]){sheetTabEls[newI].classList.add('active');sheetTabEls[newI].scrollIntoView({block:'nearest',inline:'nearest'});} }
+function renderSheetTabs(force){
+  if(!sheetTabList)return;if(!force&&sheetTabEls.length===sheets.length){sheetTabEls.forEach((_,i)=>updateSheetTab(i));return;}
+  sheetTabList.innerHTML=sheets.map((s,i)=>{const nm=escH(sheetLabel(s,i)),dt=s.docType==='spider'?'🕸':'🗂';return `<div class="sheet-tab ${i===curSheet?'active':''}" data-i="${i}" title="${nm}"><span class="st-dt">${dt}</span><span class="st-name">${nm}</span>${sheets.length>1?'<span class="st-x" title="删除画布">✕</span>':''}</div>`;}).join('');
+  sheetTabEls=[...sheetTabList.children];
 }
+sheetTabList.addEventListener('pointerdown',e=>{const tab=e.target.closest('.sheet-tab');if(!tab||e.target.closest('.st-x')||e.target.closest('[contenteditable]'))return;const i=+tab.dataset.i;if(i!==curSheet)switchSheet(i);});
+sheetTabList.addEventListener('dblclick',e=>{const tab=e.target.closest('.sheet-tab');if(!tab||e.target.closest('.st-x'))return;e.stopPropagation();startRenameSheet(+tab.dataset.i,tab.querySelector('.st-name'));});
+sheetTabList.addEventListener('click',e=>{const x=e.target.closest('.st-x');if(!x)return;e.stopPropagation();const tab=x.closest('.sheet-tab');if(tab)deleteSheet(+tab.dataset.i);});
 function startRenameSheet(i, el){
   if(readonly||!el) return; let finished=false;
   el.setAttribute('contenteditable','true'); el.focus();
   const r=document.createRange(); r.selectNodeContents(el); const s=getSelection(); s.removeAllRanges(); s.addRange(r);
   const done=commit=>{ if(finished) return; finished=true; el.removeAttribute('contenteditable');
-    if(commit) renameSheet(i, el.textContent); else renderSheetTabs(); };
+    if(commit) renameSheet(i, el.textContent); else updateSheetTab(i); };
   el.addEventListener('keydown',ev=>{ ev.stopPropagation();
     if(ev.key==='Enter'){ ev.preventDefault(); done(true); } else if(ev.key==='Escape'){ ev.preventDefault(); done(false); } });
   el.addEventListener('blur',()=>done(true), {once:true});
@@ -3483,7 +3631,8 @@ function aiParseOutline(md){
     else if(li){ lv=50+li[1].length; text=clean(li[2]); }     // 列表恒深于任何标题；缩进越多越深
     else { lv=40; text=clean(raw); }                          // 裸行：当作一级项
     if(!text) continue;
-    const node={text, children:[]};
+    const nm=/\{(?:节点|node)\s*[:：]\s*([^}]+)\}/i.exec(text),nodeText=nm?nm[1].trim():'';if(nm)text=text.replace(nm[0],'').trim();if(!text)text=nodeText||'主题';
+    const node={text,nodeText,children:[]};
     while(stack.length && stack[stack.length-1].lv>=lv) stack.pop();
     if(stack.length) stack[stack.length-1].node.children.push(node);
     else roots.push(node);
@@ -3493,18 +3642,19 @@ function aiParseOutline(md){
 }
 // 嵌套树 + 结构 → 一张干净的画布数据对象（同 drillDownToNewSheet 的构造思路）
 function aiBuildSheet(tree, structCode, name){
-  const tb={}, br={}; let n=0, bn=0;
+  const tb={}, br={},nodeBoxes=[]; let n=0, bn=0;
   const walk=(node,isRoot)=>{
     const id='t'+(++n);
     tb[id]={id, text:(node.text||'主题'), locked:false, parentBrace:null, brace:null, x:3000, y:1800};
+    const sid=window.TextStyleFeature&&TextStyleFeature.getDefaultStyleId?TextStyleFeature.getDefaultStyleId('node'):'';if(sid&&sid!=='classic'){tb[id].textStyleId=sid;tb[id].textStylePlacement='node';}
     if(isRoot && structCode && structCode!=='brace') tb[id].struct=structCode;
     if(node.children && node.children.length){
       const bid='b'+(++bn); br[bid]={id:bid, locked:false, parentTb:id, children:[]}; tb[id].brace=bid;
-      node.children.forEach(ch=>{ const cid=walk(ch,false); tb[cid].parentBrace=bid; br[bid].children.push(cid); });
+      node.children.forEach(ch=>{ const cid=walk(ch,false); tb[cid].parentBrace=bid; br[bid].children.push(cid);if(ch.nodeText&&structCode!=='brace'&&structCode!=='matrix'){const aid='t'+(++n),sid=window.TextStyleFeature&&TextStyleFeature.getDefaultStyleId?TextStyleFeature.getDefaultStyleId('node'):'';tb[aid]={id:aid,text:ch.nodeText,locked:false,parentBrace:null,brace:null,x:3000,y:1800,_nodeAttach:{braceId:bid,childId:cid},textStylePlacement:'node'};if(sid&&sid!=='classic')tb[aid].textStyleId=sid;nodeBoxes.push(aid);} });
     }
     return id;
   };
-  const roots=[]; (tree.length?tree:[{text:name||'中心主题',children:[]}]).forEach(r=>roots.push(walk(r,true)));
+  const roots=[]; (tree.length?tree:[{text:name||'中心主题',children:[]}]).forEach(r=>roots.push(walk(r,true)));roots.push(...nodeBoxes);
   return {name:name||('AI 导图 '+(sheets.length+1)), docType:'brace', idc:Math.max(n,bn)+1, focusId:null, roots,
     textboxes:tb, braces:br, rbraces:{}, fgroups:{}, links:{}, boundaries:{}, summaries:{}, callouts:{}, relations:{},
     customMarkers:[], legend:{on:false,x:null,y:null,texts:{}}, view:{numbering}};
@@ -3517,17 +3667,20 @@ function aiDocTrivial(){ try{ syncActiveSheet(); }catch(e){}
 function aiGenerateSheets(items){
   items=(items||[]).filter(it=>it.tree && it.tree.length); if(!items.length) return;
   cancelAddAnchor(); cancelAddLinkNode(); if(typeof closeTaskPanel==='function') closeTaskPanel(false);
-  syncActiveSheet(); olCollapsed.clear();
+  const replaceEmpty=aiDocTrivial();
+  if(replaceEmpty){sheetRuntimeCache=new Map();sheetLastUsed=new Map();}
+  else cacheActiveSheetRuntime();
+  olCollapsed.clear();
   let firstIdx=-1;
   items.forEach((it,i)=>{
-    const d=aiBuildSheet(it.tree, it.struct, it.name);
-    if(i===0 && aiDocTrivial()){ sheets=[d]; curSheet=0; curPath=null; curName=d.name; firstIdx=0; }
+    const d=aiBuildSheet(it.tree, it.struct, it.name);ensureSheetKey(d);
+    if(i===0 && replaceEmpty){ sheets=[d]; curSheet=0; curPath=null; curName=d.name; firstIdx=0; }
     else { sheets.push(d); curSheet=sheets.length-1; if(i===0) firstIdx=curSheet; }
   });
   dirty=true; curSheet=(firstIdx>=0?firstIdx:sheets.length-1);
-  hydrate(sheets[curSheet]); scale=1;
-  const rid=sheets[curSheet].roots[0]; if(rid&&TB[rid]) selectTb(rid);
-  centerContent(); renderSheetTabs(); refreshFileLabel(); initHistory(); markDirty();
+  const active=materializeSheet(curSheet);hydrate(active); scale=1;
+  const rid=active.roots[0]; if(rid&&TB[rid]) selectTb(rid);
+  centerContent(); renderSheetTabs(true); refreshFileLabel(); initHistory(); markDirty();scheduleSheetEviction();
   hideStart(); closeAIChat();
 }
 function aiGenerateToCanvas(tree, structCode, name){ aiGenerateSheets([{tree, struct:structCode, name}]); }
@@ -3546,9 +3699,9 @@ function currentSheetNonEmpty(){ return roots.some(id=>{ const t=TB[id]; return 
 function aiApplyToCurrentSheet(tree, structCode){
   const d=aiBuildSheet(tree, structCode, curSheetName); d.name=curSheetName;
   cancelAddAnchor(); cancelAddLinkNode(); if(typeof closeTaskPanel==='function') closeTaskPanel(false);
-  olCollapsed.clear(); syncActiveSheet(); sheets[curSheet]=d; dirty=true;
+  olCollapsed.clear(); syncActiveSheet();const oldKey=ensureSheetKey(sheets[curSheet]);ensureSheetKey(d,oldKey);sheets[curSheet]=d;touchSheet(d);dirty=true;
   hydrate(d); scale=1; const rid=d.roots[0]; if(rid&&TB[rid]) selectTb(rid);
-  centerContent(); renderSheetTabs(); refreshFileLabel(); initHistory(); markDirty();
+  centerContent(); renderSheetTabs(); refreshFileLabel(); initHistory(); markDirty();scheduleSheetEviction();
   hideStart(); closeAIChat();
 }
 // 卡片确认后落地：编辑模式=就地改当前页；新建模式=生成新画布（多页则多张）
@@ -3725,6 +3878,7 @@ Otherwise output a single <mindmap> block.
 Rules:
 - "struct" MUST be one of: Brace / Logic / Org chart / Tree / Timeline / Fishbone / Matrix / Tree table. Recommend the best fit (time order→Timeline, cause analysis→Fishbone, comparison→Matrix, hierarchy→Org chart, general breakdown→Brace/Logic).
 - Use Markdown "#" headings and "-" bullets. One single "#" is the center topic of each block. Stage 2 map = 2-4 levels, concise, information-dense.
+- When the user asks for an extra text box directly on a connector node, append {node: label text} to that outline item. ThoughtCanvas will create and anchor that node text box automatically.
 - In STAGE 1 output ONLY a <plan> block (no <mindmap>). In STAGE 2 output ONLY <mindmap> block(s). Any message that is NOT an explicit confirmation is STAGE 1 → give a <plan>, never a <mindmap>.
 - CRITICAL: the real outline MUST be INSIDE the <mindmap> block. NEVER output an empty <mindmap></mindmap>, never put the map only in your thinking, never use "---" separators or code fences, and never place the outline outside the block. If you have content to show, it goes inside the block.
 - If a 【当前画布内容】 block is provided, the user wants to EDIT their existing map: base your plan/map on it, you MAY add, remove or change nodes, keep the parts they didn't ask to change, and output only ONE updated <mindmap> (this single page).
@@ -3770,6 +3924,7 @@ Rules:
 规则：
 - struct 必须是以下之一：${names}。推荐最贴合主题的（时间顺序→时间轴，因果分析→鱼骨图，对比→矩阵，层级隶属→组织结构图，一般拆解→大括号/逻辑图）。
 - 用 Markdown 的 # 标题和 - 列表；每个块用一个「#」作中心主题；第二步的完整图控制在 2-4 层，简洁、信息密度高。
+- 用户要求在连线节点上额外放文字时，在对应大纲项末尾写 {节点: 节点文字}；ThoughtCanvas 会自动生成并吸附节点文本框。
 - **第一步只输出 <plan> 块（不要给 <mindmap>）；第二步只输出 <mindmap> 块。凡不是"确认展开"的消息都属第一步 → 给 <plan>，绝不给 <mindmap>。**
 - **最关键：真正的大纲内容必须写在 <mindmap> 块里面。绝不能输出空的 <mindmap></mindmap>，绝不能把导图只留在思考里，绝不能用「---」分隔线或代码围栏，绝不能把大纲写在块外面。有内容就写进块里。**
 - 若提供了【当前画布内容】，说明用户要修改已有导图：以它为基础，可以增加、删除、修改节点，没提到的部分保留，只输出**一张**改好后的完整 <mindmap>（就这一页）。
@@ -4191,7 +4346,7 @@ function drillDownToNewSheet(id){
   const bmap={}; let bn=0; const remapB=x=> bmap[x] || (bmap[x]='b'+(++bn));
   const tb={}, br={};
   sub.forEach(x=>{ const o=TB[x]; const nx=remap(x);
-    const c=JSON.parse(JSON.stringify({id:nx,text:o.text,locked:o.locked,x:o.x,y:o.y,bg:o.bg,todo:o.todo,done:o.done,markers:o.markers,tags:o.tags,note:o.note,link:o.link,img:o.img,task:o.task,struct:o.struct,_seg:o._seg,_offX:o._offX,_offY:o._offY}));
+    const c=clonePlain({id:nx,text:o.text,locked:o.locked,x:o.x,y:o.y,bg:o.bg,todo:o.todo,done:o.done,markers:o.markers,tags:o.tags,note:o.note,link:o.link,img:o.img,task:o.task,struct:o.struct,_seg:o._seg,_offX:o._offX,_offY:o._offY});
     c.parentBrace=(o.parentBrace&&sub.has(BR[o.parentBrace]&&BR[o.parentBrace].parentTb))?remapB(o.parentBrace):null;
     c.brace=o.brace?remapB(o.brace):null;
     tb[nx]=c; });
@@ -4201,46 +4356,82 @@ function drillDownToNewSheet(id){
   const d={name:'画布 '+(sheets.length+1), docType:'brace', idc:Math.max(n,bn)+1, focusId:null, roots:[rootNew],
     textboxes:tb, braces:br, rbraces:{}, fgroups:{}, links:{}, boundaries:{}, summaries:{}, callouts:{}, relations:{},
     customMarkers:customMarkers.slice(), legend:{on:false,x:null,y:null,texts:{}}, view:{numbering}};
-  cancelAddAnchor(); cancelAddLinkNode(); syncActiveSheet(); olCollapsed.clear();
+  ensureSheetKey(d);cancelAddAnchor(); cancelAddLinkNode(); cacheActiveSheetRuntime(); olCollapsed.clear();
   sheets.push(d); curSheet=sheets.length-1; hydrate(d); scale=1;
   if(TB[rootNew]) selectTb(rootNew); centerContent();
-  renderSheetTabs(); initHistory(); markDirty();
+  renderSheetTabs(true); initHistory(); markDirty();scheduleSheetEviction();
 }
 
 //================ 撤销 / 重做（针对当前活动画布） ================
-function modelStr(){ return JSON.stringify(sheetData(true)); }
-function applyModel(str){ hydrate(JSON.parse(str)); }
+const HISTORY_DICTS=['textboxes','braces','rbraces','fgroups','links','boundaries','summaries','callouts','relations'];
+const HISTORY_META=['name','docType','idc','focusId','roots','customMarkers','legend','view'];
+function deepEqual(a,b){
+  if(a===b)return true;if(!a||!b||typeof a!=='object'||typeof b!=='object')return false;
+  if(Array.isArray(a)!==Array.isArray(b))return false;const ak=Object.keys(a),bk=Object.keys(b);if(ak.length!==bk.length)return false;
+  for(const k of ak)if(!Object.prototype.hasOwnProperty.call(b,k)||!deepEqual(a[k],b[k]))return false;return true;
+}
+function diffHistory(before,after){
+  const ops=[];
+  for(const key of HISTORY_META)if(!deepEqual(before[key],after[key]))ops.push({kind:'meta',key,before:before[key],after:after[key]});
+  for(const section of HISTORY_DICTS){ const a=before[section]||{},b=after[section]||{},ids=new Set([...Object.keys(a),...Object.keys(b)]);
+    ids.forEach(id=>{if(!deepEqual(a[id],b[id]))ops.push({kind:'entity',section,id,before:a[id],after:b[id]});}); }
+  return ops;
+}
+function applyHistoryPatch(entry,useAfter){
+  syncActiveSheet();const d=materializeSheet(curSheet),side=useAfter?'after':'before';
+  for(const op of entry.ops){const value=op[side];if(op.kind==='meta')d[op.key]=clonePlain(value);
+    else {const dict=d[op.section]||(d[op.section]={});if(value===undefined)delete dict[op.id];else dict[op.id]=clonePlain(value);} }
+  hydrate(d);syncActiveSheet();updateSheetTab(curSheet);historyShadow=sheetData(true);
+}
 function pushHistory(){
-  const snap=modelStr();
-  if(hidx>=0 && history[hidx]===snap) return;
-  history.length=hidx+1;            // 丢弃当前位置之后的重做分支
-  history.push(snap);
-  if(history.length>150) history.shift();
-  hidx=history.length-1;
+  const next=sheetData(true);if(!historyShadow){historyShadow=next;updateUndoBtns();return;}
+  const ops=diffHistory(historyShadow,next);if(!ops.length)return;
+  if(hidx<history.length)history.length=hidx;
+  history.push({ops});hidx=history.length;historyShadow=next;
+  if(history.length>150){history.shift();hidx--;}
   updateUndoBtns();
 }
-function initHistory(){ history=[modelStr()]; hidx=0; updateUndoBtns(); }
-function undo(){ if(readonly||hidx<=0||editing) return; hidx--; applyModel(history[hidx]); dirty=true; refreshFileLabel(); updateUndoBtns(); }
-function redo(){ if(readonly||hidx>=history.length-1||editing) return; hidx++; applyModel(history[hidx]); dirty=true; refreshFileLabel(); updateUndoBtns(); }
+function initHistory(){ history=[];hidx=0;historyShadow=sheetData(true);updateUndoBtns(); }
+function undo(){ if(readonly||hidx<=0||editing)return;const entry=history[hidx-1];applyHistoryPatch(entry,false);hidx--;modelRevision++;dirty=true;refreshFileLabel();updateUndoBtns(); }
+function redo(){ if(readonly||hidx>=history.length||editing)return;const entry=history[hidx];applyHistoryPatch(entry,true);hidx++;modelRevision++;dirty=true;refreshFileLabel();updateUndoBtns(); }
 function updateUndoBtns(){
   const u=document.getElementById('undoBtn'), r=document.getElementById('redoBtn');
   if(u) u.disabled = readonly || hidx<=0;
-  if(r) r.disabled = readonly || hidx>=history.length-1;
+  if(r) r.disabled = readonly || hidx>=history.length;
 }
 
+let saveQueue=Promise.resolve();
+function captureSaveSnapshot(){
+  syncActiveSheet();evictSheetsToLimit(null);
+  return {revision:modelRevision,name:curName,curSheet,sheetChunks:sheets.map((_,i)=>serializedSheetAt(i)),aiChat:JSON.stringify(aiChatForSave())};
+}
+async function streamSaveSnapshot(filePath,snapshot){
+  const begin=await window.api.saveBegin(filePath,snapshot.name);if(!begin||begin.canceled)return begin;
+  try{
+    await window.api.saveChunk(begin.id,`{"app":"brace-mindmap","version":2,"name":${JSON.stringify(snapshot.name)},"curSheet":${snapshot.curSheet},"sheets":[`);
+    for(let i=0;i<snapshot.sheetChunks.length;i++){await window.api.saveChunk(begin.id,(i?',':'')+snapshot.sheetChunks[i]);if((i&1)===1)await new Promise(r=>setTimeout(r,0));}
+    await window.api.saveChunk(begin.id,`],"aiChat":${snapshot.aiChat}}`);const end=await window.api.saveEnd(begin.id,false);
+    return Object.assign({},begin,end,{revision:snapshot.revision,snapshotName:snapshot.name});
+  }catch(err){try{await window.api.saveEnd(begin.id,true);}catch(_){}throw err;}
+}
+function streamSave(filePath){
+  const snapshot=captureSaveSnapshot(),job=saveQueue.then(()=>streamSaveSnapshot(filePath,snapshot));
+  saveQueue=job.then(()=>undefined,()=>undefined);return job;
+}
 async function doSave(){
-  const content=serialize();
   if(isDesktop){
-    if(curPath){ const r=await window.api.save(content,curPath); if(r.ok){ dirty=false; refreshFileLabel(); addRecent(curPath,curName); } }
-    else { await doSaveAs(); }
-  }else{ browserDownload(content, curName+'.bmap'); dirty=false; refreshFileLabel(); }
+    if(curPath){ const target=curPath,r=await streamSave(target); if(r&&r.ok){if(modelRevision===r.revision){dirty=false;refreshFileLabel();}addRecent(r.path||target,r.snapshotName||curName);} return r; }
+    return await doSaveAs();
+  }else{ const content=serialize();browserDownload(content,curName+'.bmap');dirty=false;refreshFileLabel(); }
 }
 async function doSaveAs(){
-  const content=serialize();
   if(isDesktop){
-    const r=await window.api.saveAs(content,curName);
-    if(r && !r.canceled){ curPath=r.path; curName=r.name.replace(/\.bmap$/i,''); dirty=false; refreshFileLabel(); addRecent(curPath,curName); }
+    const r=await streamSave(null);
+    if(r&&!r.canceled&&r.ok){addRecent(r.path,r.snapshotName||r.name.replace(/\.bmap$/i,''));
+      if(modelRevision===r.revision){curPath=r.path;curName=r.name.replace(/\.bmap$/i,'');dirty=false;refreshFileLabel();}}
+    return r;
   }else{
+    const content=serialize();
     const name=prompt('保存为文件名：', curName)||curName;
     curName=name.replace(/\.bmap$/i,''); browserDownload(content, curName+'.bmap');
     dirty=false; refreshFileLabel();
@@ -4250,7 +4441,7 @@ async function doOpen(){
   if(!(await guardUnsaved())) return false;
   if(isDesktop){
     const r=await window.api.open();
-    if(r && !r.canceled){ if(loadData(r.content, r.name.replace(/\.bmap$/i,''))){ curPath=r.path; dirty=false; refreshFileLabel(); addRecent(curPath,curName); return true; } }
+    if(r && !r.canceled){ if(await loadDataAsync(r.content, r.name.replace(/\.bmap$/i,''))){ curPath=r.path; dirty=false; refreshFileLabel(); addRecent(curPath,curName); return true; } }
     return false;
   }else{
     document.getElementById('fileInput').click();
@@ -4259,14 +4450,15 @@ async function doOpen(){
 }
 async function doNew(type, initStruct){
   if(!(await guardUnsaved())) return;
+  modelRevision++;
   cancelAddAnchor(); cancelAddLinkNode(); closeTaskPanel(false); olCollapsed.clear();
   const dtype=type||'brace';
-  sheets=[newSheetData(dtype, initStruct, dtype==='spider'?'画布 1':'画布 1')]; curSheet=0;
+  sheets=[newSheetData(dtype, initStruct, dtype==='spider'?'画布 1':'画布 1')]; curSheet=0;sheetRuntimeCache=new Map();sheetLastUsed=new Map();
   curPath=null; curName=(dtype==='spider'?'未命名蜘蛛网':'未命名思维导图'); dirty=false;
   hydrate(sheets[0]); scale=1;
   const rootId=sheets[0].roots[0];
   if(rootId){ selectTb(rootId); centerContent(); } else { centerWorld(3000,1800); }
-  renderSheetTabs(); refreshFileLabel(); initHistory();
+  renderSheetTabs(true); refreshFileLabel(); initHistory();
   aiLoadChat([]);                                          // 新文件：清空 AI 对话记录
 }
 
@@ -4295,7 +4487,7 @@ function browserDownload(content, filename){
 document.getElementById('fileInput').addEventListener('change', e=>{
   const f=e.target.files[0]; if(!f) return;
   const rd=new FileReader();
-  rd.onload=()=>{ if(loadData(rd.result, f.name.replace(/\.bmap$/i,''))){ curPath=null; dirty=false; refreshFileLabel(); hideStart(); } };
+  rd.onload=async()=>{ if(await loadDataAsync(rd.result, f.name.replace(/\.bmap$/i,''))){ curPath=null; dirty=false; refreshFileLabel(); hideStart(); } };
   rd.readAsText(f); e.target.value='';
 });
 
@@ -4543,7 +4735,7 @@ window.addEventListener('drop', async e=>{
   if(!nm.endsWith('.bmap')) return;
   if(!(await guardUnsaved())) return;
   const rd=new FileReader();
-  rd.onload=()=>{ if(loadData(rd.result, f.name.replace(/\.bmap$/i,''))){ curPath=(window.api && f.path)?f.path:null; dirty=false; refreshFileLabel(); hideStart(); } };
+  rd.onload=async()=>{ if(await loadDataAsync(rd.result, f.name.replace(/\.bmap$/i,''))){ curPath=(window.api && f.path)?f.path:null; dirty=false; refreshFileLabel(); hideStart(); } };
   rd.readAsText(f);
 });
 applyScheme(curScheme);
@@ -4712,7 +4904,7 @@ function finishRename(commit){
   fnameEl.removeAttribute('contenteditable');
   if(commit){
     let n=fnameEl.textContent.replace(/\s+/g,' ').trim().replace(/[\\/:*?"<>|]/g,'');
-    if(n && n!==curName){ curName=n; dirty=true; }
+    if(n && n!==curName){ curName=n; modelRevision++;dirty=true; }
   }
   refreshFileLabel();
   fnameEl.blur();
@@ -4741,7 +4933,7 @@ async function bootstrap(){
   if(isDesktop && window.api.getInitialFile){
     try{
       const r=await window.api.getInitialFile();
-      if(r && r.content && loadData(r.content, (r.name||'').replace(/\.bmap$/i,''))){
+      if(r && r.content && await loadDataAsync(r.content, (r.name||'').replace(/\.bmap$/i,''))){
         curPath=r.path; dirty=false; refreshFileLabel(); addRecent(r.path,curName); hideStart(); return;
       }
     }catch(e){}
@@ -4749,14 +4941,15 @@ async function bootstrap(){
   showStart();
 }
 // 软件已开着时，再双击另一个 .bmap 文件 → 转发到这里加载
+let incomingFileQueue=Promise.resolve();
 if(isDesktop && window.api.onOpenFile){
-  window.api.onOpenFile(async data=>{
+  window.api.onOpenFile(data=>{incomingFileQueue=incomingFileQueue.then(async()=>{
     if(!data || !data.content) return;
     if(!(await guardUnsaved())) return;
-    if(loadData(data.content, (data.name||'').replace(/\.bmap$/i,''))){
+    if(await loadDataAsync(data.content, (data.name||'').replace(/\.bmap$/i,''))){
       curPath=data.path; dirty=false; refreshFileLabel(); addRecent(data.path,curName); hideStart();
     }
-  });
+  }).catch(e=>console.error('open-file-data',e));return incomingFileQueue;});
 }
 
 // 关闭窗口前：有未保存更改则询问保存/不保存/取消
@@ -4794,7 +4987,7 @@ async function openRecent(r){
   if(!r) return;
   if(!(await guardUnsaved())) return;
   const res=await window.api.openPath(r.path);
-  if(res.ok){ if(loadData(res.content, res.name.replace(/\.bmap$/i,''))){ curPath=res.path;
+  if(res.ok){ if(await loadDataAsync(res.content, res.name.replace(/\.bmap$/i,''))){ curPath=res.path;
     dirty=false; refreshFileLabel(); addRecent(res.path,curName); hideStart(); } }
   else { alert('无法打开，文件可能已被移动或删除'); removeRecent(r.path); }
 }
@@ -4886,9 +5079,9 @@ function openTidyMenu(){
     const ss=tidyMenu.querySelector('#structSpace');
     ss.addEventListener('pointerdown',ev=>ev.stopPropagation());
     ss.addEventListener('input',ev=>{ structGap[st]=(+ev.target.value)/100; const o=tidyMenu.querySelector('#segPctOut'); if(o)o.textContent=(+ev.target.value)+'%'; layout(); });
-    ss.addEventListener('change',()=>{ markDirty(); pushHistory(); });
+    ss.addEventListener('change',()=>{ markDirty(); });
     const rs=tidyMenu.querySelector('[data-segreset]');
-    if(rs) rs.addEventListener('click',ev=>{ ev.stopPropagation(); closeMenus(); delete structGap[st]; layout(); markDirty(); pushHistory(); });
+    if(rs) rs.addEventListener('click',ev=>{ ev.stopPropagation(); closeMenus(); delete structGap[st]; layout(); markDirty(); });
   }
   tidyMenu.classList.add('open');
   const r=tidyBtn.getBoundingClientRect();
@@ -4908,7 +5101,7 @@ function setTidy(mode){
   updateTidyBtn();
   if(editing && els[editing]) els[editing]._inner.blur();
   layout(); centerContent();
-  dirty=true; refreshFileLabel();
+  modelRevision++;dirty=true; refreshFileLabel();
 }
 function setSpiderTidy(){
   spiderTidyMode = (spiderTidyMode==='radial') ? '' : 'radial';
@@ -4966,7 +5159,7 @@ function setStruct(id, k){
   else TB[id].struct=k;
   compactMode=0; updateTidyBtn();      // 切换结构后退出智能整理（智能整理仅大括号图）
   update(); centerContent();
-  markDirty(); pushHistory();
+  markDirty();
 }
 structMenu.addEventListener('click',e=>e.stopPropagation());
 
@@ -4977,7 +5170,7 @@ function menuItems(key){
   const sel=selPrimary(); const has=!!(sel&&TB[sel]); const n=selSet.size;
   if(key==='edit') return [
     {label:'撤销', sk:'Ctrl+Z', dis:hidx<=0, fn:()=>undo()},
-    {label:'重做', sk:'Ctrl+Y', dis:hidx>=history.length-1, fn:()=>redo()},
+    {label:'重做', sk:'Ctrl+Y', dis:hidx>=history.length, fn:()=>redo()},
     {sep:true},
     {label:'删除', sk:'Del', dis:!has, danger:true, fn:()=>{ if(n>1) doDeleteSelected(); else if(sel) doDelete(sel); }},
   ];
@@ -5370,10 +5563,10 @@ function startAddLinkNode(lid){
   cancelAddLinkNode(); cancelAddAnchor(); selLink=lid; selLinkNode=null;
   const p0=(function(){ const pts=linkPoints(LK[lid]); return {x:(pts[0].x+pts[pts.length-1].x)/2, y:(pts[0].y+pts[pts.length-1].y)/2}; })();
   addLinkNodeMode={lid, x:p0.x, y:p0.y};
-  const mm=ev=>{ const l=LK[lid]; if(!l){ cancelAddLinkNode(); return; }
+  const mm=rafThrottle(ev=>{ const l=LK[lid]; if(!l){ cancelAddLinkNode(); return; }
     const w=toWorld(ev.clientX,ev.clientY); const onLine=projectOntoLink(l,w); const s=snapLinkNodePos(l,onLine);
-    addLinkNodeMode.x=s.x; addLinkNodeMode.y=s.y; drawSpider(); };
-  const clk=ev=>{ ev.preventDefault(); ev.stopPropagation();
+    addLinkNodeMode.x=s.x; addLinkNodeMode.y=s.y; drawSpider(); });
+  const clk=ev=>{ mm.flush(); ev.preventDefault(); ev.stopPropagation();
     if(addLinkNodeMode){ const m=addLinkNodeMode; addLinkNode(m.lid,{x:m.x,y:m.y}); } cancelAddLinkNode(); };
   const key=ev=>{ if(ev.key==='Escape'){ ev.preventDefault(); cancelAddLinkNode(); } };
   addLinkNodeMode._mm=mm; addLinkNodeMode._clk=clk; addLinkNodeMode._key=key;
@@ -5382,7 +5575,7 @@ function startAddLinkNode(lid){
   document.addEventListener('keydown',key); drawSpider();
 }
 function cancelAddLinkNode(){ if(!addLinkNodeMode) return; const m=addLinkNodeMode; addLinkNodeMode=null;
-  document.removeEventListener('mousemove',m._mm); document.removeEventListener('keydown',m._key);
+  if(m._mm.cancel)m._mm.cancel(); document.removeEventListener('mousemove',m._mm); document.removeEventListener('keydown',m._key);
   try{ document.removeEventListener('click',m._clk,{capture:true}); }catch(_){}
   drawSpider();
 }
@@ -5418,8 +5611,8 @@ function finishEditLinkText(commit){
 function startLinkLabelDrag(lid, e){
   if(readonly) return; const l=LK[lid]; if(!l) return; selLink=lid; selLinkNode=null;
   const lp=linkLabelPos(l); const w0=toWorld(e.clientX,e.clientY); const ox=lp.x-w0.x, oy=lp.y-w0.y;
-  const move=ev=>{ const w=toWorld(ev.clientX,ev.clientY); l.tx=w.x+ox; l.ty=w.y+oy; drawSpider(); };
-  const up=()=>{ svg.removeEventListener('pointermove',move); svg.removeEventListener('pointerup',up);
+  const move=rafThrottle(ev=>{ const w=toWorld(ev.clientX,ev.clientY); l.tx=w.x+ox; l.ty=w.y+oy; drawSpider(); });
+  const up=()=>{ move.flush(); svg.removeEventListener('pointermove',move); svg.removeEventListener('pointerup',up);
     try{svg.releasePointerCapture(e.pointerId);}catch(_){} markDirty(); };
   try{svg.setPointerCapture(e.pointerId);}catch(_){}
   svg.addEventListener('pointermove',move); svg.addEventListener('pointerup',up);
@@ -5430,7 +5623,7 @@ function drawSpider(){
     const pts=linkPoints(l), pb=pts[pts.length-1];
     const cls=(l.locked?'locked':'')+(selLink===lid?' sel':'');
     const d=linkPathD(l);
-    s+=`<path class="link-line ${cls}" d="${d}"/>`;
+    s+=`<path class="link-line ${cls}" data-link-line="${lid}" d="${d}"/>`;
     if(spiderArrow) s+=arrowSVG(linkArrowApproach(l),pb,cls);
     s+=`<path class="link-hit" data-link="${lid}" d="${d}"/>`;
     if(l.text && !(editLinkLabel&&editLinkLabel.lid===lid)){ const lp=linkLabelPos(l); s+=`<text class="link-label" data-linklabel="${lid}" x="${lp.x.toFixed(1)}" y="${lp.y.toFixed(1)}" text-anchor="middle" dominant-baseline="central">${esc(l.text)}</text>`; }
@@ -5483,10 +5676,10 @@ function startLinkDrag(tb,ang,e){
   if(readonly||!TB[tb]) return;
   const p0=anchorPos(TB[tb],ang);
   linkDrag={tb,ang,mx:p0.x,my:p0.y,cand:null};
-  const move=ev=>{ if(!linkDrag) return; const w=toWorld(ev.clientX,ev.clientY); linkDrag.cand=nearestAnchor(w.x,w.y,tb);
+  const move=rafThrottle(ev=>{ if(!linkDrag) return; const w=toWorld(ev.clientX,ev.clientY); linkDrag.cand=nearestAnchor(w.x,w.y,tb);
     if(linkDrag.cand){ const p=anchorPos(TB[linkDrag.cand.tb],linkDrag.cand.ang); linkDrag.mx=p.x; linkDrag.my=p.y; }
-    else { linkDrag.mx=w.x; linkDrag.my=w.y; } drawSpider(); };
-  const up=ev=>{ try{svg.releasePointerCapture(e.pointerId);}catch(_){}
+    else { linkDrag.mx=w.x; linkDrag.my=w.y; } drawSpider(); });
+  const up=ev=>{ move.flush(); try{svg.releasePointerCapture(e.pointerId);}catch(_){}
     svg.removeEventListener('pointermove',move); svg.removeEventListener('pointerup',up);
     const c=linkDrag&&linkDrag.cand; linkDrag=null;
     if(c) createLink(tb,ang,c.tb,c.ang); else drawSpider(); };
@@ -5498,10 +5691,10 @@ function startAddAnchor(id){
   if(readonly||docType!=='spider'||!TB[id]) return;
   cancelAddAnchor(); selectTb(id);
   addAnchorMode={tb:id,ang:0};
-  const mm=ev=>{ const t=TB[id]; if(!t){ cancelAddAnchor(); return; } const w=toWorld(ev.clientX,ev.clientY);
+  const mm=rafThrottle(ev=>{ const t=TB[id]; if(!t){ cancelAddAnchor(); return; } const w=toWorld(ev.clientX,ev.clientY);
     const raw=Math.atan2(w.y-t._cy, w.x-(t._x+t._w/2));
-    addAnchorMode.ang=snapAnchorAngle(t, raw, w); drawSpider(); };
-  const clk=ev=>{ ev.preventDefault(); ev.stopPropagation(); const t=TB[id];
+    addAnchorMode.ang=snapAnchorAngle(t, raw, w); drawSpider(); });
+  const clk=ev=>{ mm.flush(); ev.preventDefault(); ev.stopPropagation(); const t=TB[id];
     if(t){ (t.anchors=t.anchors||[]).push(addAnchorMode.ang); markDirty(); } cancelAddAnchor(); };
   const key=ev=>{ if(ev.key==='Escape'){ ev.preventDefault(); cancelAddAnchor(); } };
   addAnchorMode._mm=mm; addAnchorMode._clk=clk; addAnchorMode._key=key;
@@ -5511,7 +5704,7 @@ function startAddAnchor(id){
   drawSpider();
 }
 function cancelAddAnchor(){ if(!addAnchorMode) return; const m=addAnchorMode; addAnchorMode=null;
-  document.removeEventListener('mousemove',m._mm); document.removeEventListener('keydown',m._key);
+  if(m._mm.cancel)m._mm.cancel(); document.removeEventListener('mousemove',m._mm); document.removeEventListener('keydown',m._key);
   try{ document.removeEventListener('click',m._clk,{capture:true}); }catch(_){}
   drawSpider();
 }
@@ -5542,11 +5735,11 @@ function openLinkMenu(lid,cx,cy){
 // 拖动连线航点：折线模式带 45°/90° 磁吸；曲线模式自由移动
 function startLinkNodeDrag(lid, idx, e){
   if(readonly) return; const l=LK[lid]; if(!l||!l.nodes||!l.nodes[idx]) return;
-  selLink=lid; selLinkNode=idx; selSet.clear(); render(); drawSpider();
-  const move=ev=>{ const w=toWorld(ev.clientX,ev.clientY); let pos={x:w.x,y:w.y};
+  const prev=new Set(selSet); selLink=lid; selLinkNode=idx; selSet.clear(); updateSelectionVisuals(prev);
+  const move=rafThrottle(ev=>{ const w=toWorld(ev.clientX,ev.clientY); let pos={x:w.x,y:w.y};
     if((l.mode||'poly')!=='curve'){ const pts=linkPoints(l); pos=snapNodeAngle(pts[idx], pos, pts[idx+2]); }
-    l.nodes[idx].x=pos.x; l.nodes[idx].y=pos.y; drawSpider(); };
-  const up=()=>{ svg.removeEventListener('pointermove',move); svg.removeEventListener('pointerup',up);
+    l.nodes[idx].x=pos.x; l.nodes[idx].y=pos.y; drawSpider(); });
+  const up=()=>{ move.flush(); svg.removeEventListener('pointermove',move); svg.removeEventListener('pointerup',up);
     try{svg.releasePointerCapture(e.pointerId);}catch(_){} markDirty(); };
   try{svg.setPointerCapture(e.pointerId);}catch(_){}
   svg.addEventListener('pointermove',move); svg.addEventListener('pointerup',up);
@@ -5557,9 +5750,9 @@ function startLinkHandleDrag(lid, idx, which, e){
   if(l.mode!=='curve'){ (l.nodes||[]).forEach((nd,i)=>{ if(nd.ox==null){ const H=nodeHandleVecs(l,i); nd.ox=H.ox; nd.oy=H.oy; nd.ix=H.ix; nd.iy=H.iy; } }); l.mode='curve'; }
   selLink=lid; selLinkNode=idx; const nd=l.nodes[idx];
   // 两条手柄独立：拖哪条只改哪条(角度可非平角、长度可不同)
-  const move=ev=>{ const w=toWorld(ev.clientX,ev.clientY); const vx=w.x-nd.x, vy=w.y-nd.y;
-    if(which==='in'){ nd.ix=vx; nd.iy=vy; } else { nd.ox=vx; nd.oy=vy; } drawSpider(); };
-  const up=()=>{ svg.removeEventListener('pointermove',move); svg.removeEventListener('pointerup',up);
+  const move=rafThrottle(ev=>{ const w=toWorld(ev.clientX,ev.clientY); const vx=w.x-nd.x, vy=w.y-nd.y;
+    if(which==='in'){ nd.ix=vx; nd.iy=vy; } else { nd.ox=vx; nd.oy=vy; } drawSpider(); });
+  const up=()=>{ move.flush(); svg.removeEventListener('pointermove',move); svg.removeEventListener('pointerup',up);
     try{svg.releasePointerCapture(e.pointerId);}catch(_){} markDirty(); };
   try{svg.setPointerCapture(e.pointerId);}catch(_){}
   svg.addEventListener('pointermove',move); svg.addEventListener('pointerup',up);
@@ -5568,7 +5761,7 @@ function startLinkHandleDrag(lid, idx, which, e){
 svg.addEventListener('pointerdown', e=>{
   if(docType!=='spider'||readonly) return;
   const ll=e.target.closest('.link-label');
-  if(ll){ e.stopPropagation(); selLink=ll.dataset.linklabel; selLinkNode=null; render(); startLinkLabelDrag(ll.dataset.linklabel, e); return; }
+  if(ll){ e.stopPropagation(); const prev=new Set(selSet);selLink=ll.dataset.linklabel;selLinkNode=null;selSet.clear();updateSelectionVisuals(prev);startLinkLabelDrag(ll.dataset.linklabel,e);return; }
   const hd=e.target.closest('.link-handle');
   if(hd){ e.stopPropagation(); startLinkHandleDrag(hd.dataset.link, +hd.dataset.idx, hd.dataset.h, e); return; }
   const ln=e.target.closest('.link-node');
@@ -5576,7 +5769,7 @@ svg.addEventListener('pointerdown', e=>{
   const a=e.target.closest('.anchor');
   if(a){ e.stopPropagation(); startLinkDrag(a.dataset.tb, +a.dataset.ang, e); return; }
   const lh=e.target.closest('.link-hit');
-  if(lh){ e.stopPropagation(); selLink=lh.dataset.link; selLinkNode=null; selSet.clear(); render(); drawSpider(); }
+  if(lh){ e.stopPropagation();const prev=new Set(selSet);selLink=lh.dataset.link;selLinkNode=null;selSet.clear();updateSelectionVisuals(prev); }
 });
 svg.addEventListener('contextmenu', e=>{
   if(docType!=='spider'||readonly) return;
@@ -6380,5 +6573,6 @@ applyLang();   // 应用界面语言（中/英）
 applyDocType();
 bootstrap();   // 启动：有初始文件则直接打开，否则显示开始页
 </script>
+<script src="text-styles.js"></script>
 </body>
 </html>

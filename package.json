@@ -1,12 +1,27 @@
 {
   "name": "brace-mindmap",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "ThoughtCanvas — 完全自定义、本地优先的思维导图工具",
   "author": "happymore",
+  "license": "GPL-3.0-only",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win portable"
+    "test:performance": "electron tests/performance-smoke.js",
+    "test:text-styles": "electron tests/text-styles-smoke.js",
+    "test:text-input": "electron tests/live-input-rules-smoke.js",
+    "test:user-style": "electron tests/user-style-centering-smoke.js",
+    "test:node-textboxes": "electron tests/node-textbox-audit-smoke.js",
+    "test:sizing-modes": "electron tests/two-sizing-modes-smoke.js",
+    "test:wpf-style-parity": "electron tests/wpf-real-library-parity-smoke.js",
+    "test:text-region-roundtrip": "electron tests/text-region-roundtrip-smoke.js",
+    "test:visual-unified": "electron tests/unified-layer-visual-smoke.js",
+    "test:real-style-sizing": "electron tests/real-style-sizing-regression.js",
+    "generate:stress-fixture": "node tests/generate-stress-fixture.js",
+    "dist": "electron-builder --win",
+    "dist:win": "electron-builder --win",
+    "dist:win:installer": "electron-builder --win nsis",
+    "dist:win:portable": "electron-builder --win portable"
   },
   "devDependencies": {
     "@electron/packager": "^20.0.1",
@@ -17,26 +32,70 @@
     "appId": "com.thoughtcanvas.app",
     "productName": "ThoughtCanvas",
     "directories": {
+      "buildResources": "build",
       "output": "dist"
     },
     "files": [
       "main.js",
       "preload.js",
       "index.html",
+      "text-styles.css",
+      "text-styles.js",
+      "text-styles/**/*",
       "libs/**/*",
       "themes/**/*",
-      "build/icon.ico"
+      "build/icon.ico",
+      "LICENSE",
+      "THIRD_PARTY_NOTICES.md",
+      "THIRD_PARTY_LICENSES/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "LICENSE",
+        "to": "LICENSE"
+      },
+      {
+        "from": "THIRD_PARTY_NOTICES.md",
+        "to": "THIRD_PARTY_NOTICES.md"
+      },
+      {
+        "from": "THIRD_PARTY_LICENSES",
+        "to": "THIRD_PARTY_LICENSES"
+      }
     ],
     "win": {
-      "target": "portable",
-      "icon": "build/icon.ico",
-      "artifactName": "ThoughtCanvas.exe"
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ThoughtCanvas"
     },
     "portable": {
-      "artifactName": "ThoughtCanvas.exe",
+      "artifactName": "${productName}-${version}-Portable.${ext}",
       "unpackDirName": "ThoughtCanvas",
       "splashImage": null
     },
+    "fileAssociations": [
+      {
+        "ext": "bmap",
+        "name": "ThoughtCanvas 思维导图",
+        "description": "ThoughtCanvas 思维导图文件",
+        "icon": "build/icon.ico",
+        "role": "Editor"
+      }
+    ],
     "compression": "normal"
   },
   "dependencies": {
