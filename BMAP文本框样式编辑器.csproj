@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>BMAP文本框样式编辑器</AssemblyName>
+    <RootNamespace>BmapTextStyleEditor</RootNamespace>
+    <Version>0.0.1</Version>
+    <Authors>happymore</Authors>
+    <Description>ThoughtCanvas 文本框样式编辑器</Description>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+    <ApplicationIcon>assets\icon.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup><Resource Include="assets\icon.ico" /></ItemGroup>
+  <ItemGroup><Compile Remove="tests\**\*.cs" /></ItemGroup>
+</Project>

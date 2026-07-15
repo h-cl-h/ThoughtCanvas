@@ -1,40 +1,18 @@
-# ThoughtCanvas V0.0.8 第三方组件与许可证
+# BMAP 文本框样式编辑器 V0.0.1 第三方组件与许可证
 
-ThoughtCanvas 自有代码采用 GPL-3.0-only，完整条款见同目录 `LICENSE`。下面列出的文件不是重新授权为 GPL；它们继续适用各自的许可证。完整许可副本位于 `THIRD_PARTY_LICENSES/`，并会随 Windows 安装包一起分发。
+编辑器自有代码采用 GPL-3.0-only，完整条款见同目录 `LICENSE`。
 
-## 运行时与 JavaScript
+## .NET 8 与 WPF
 
-| 组件 | 版本/用途 | 许可证 | 本地许可副本 |
-|---|---|---|---|
-| [Electron](https://github.com/electron/electron) | 31.x，桌面运行时 | MIT；Chromium/Node.js 等另见运行时自带 notices | `Electron-LICENSE.txt` |
-| [jsPDF](https://github.com/parallax/jsPDF) | 4.2.1，PDF 导出 | MIT，打包文件内还保留其组成模块声明 | `jsPDF-LICENSE.txt` |
+编辑器发布为 `win-x64` 自包含单文件，包含 Microsoft .NET 8 运行时和 Windows Desktop/WPF 组件。Microsoft .NET 运行时源码采用 MIT，完整许可副本见：
 
-Electron 发行目录还包含 `LICENSE.electron.txt` 和 `LICENSES.chromium.html`；打包或再分发时不得删除。
+- `THIRD_PARTY_LICENSES/dotnet-LICENSE.txt`
+- `THIRD_PARTY_LICENSES/dotnet-ThirdPartyNotices.txt`
 
-## 随程序分发的 CSS 与设计令牌
+第二个文件包含 .NET 运行时所带第三方组件的原始声明；构建安装包或再分发时不得删除这两个文件。
 
-| 本地文件 | 上游项目 | 版本 | 许可证 | 本地许可副本 |
-|---|---|---:|---|---|
-| `libs/skins/coreui/coreui.min.css` | [CoreUI](https://github.com/coreui/coreui) | 5.8.0 | MIT | `CoreUI-LICENSE.txt` |
-| `libs/skins/nes/nes.css` | [NES.css](https://github.com/nostalgic-css/NES.css) | development snapshot | MIT | `NES.css-LICENSE.txt` |
-| `libs/skins/nes/nes.css` 中的重置样式 | [Bootstrap](https://github.com/twbs/bootstrap) / [Normalize.css](https://github.com/necolas/normalize.css) | Bootstrap Reboot 4.1.3 | MIT | `Bootstrap-4.1.3-LICENSE.txt` / `Normalize.css-LICENSE.txt` |
-| `libs/skins/photon/photon.css` | [Photon](https://github.com/connors/photon) | 0.1.2 | MIT | `Photon-LICENSE.txt` |
-| `libs/skins/pico/pico.css` | [Pico CSS](https://github.com/picocss/pico) | 2.1.1 | MIT | `Pico.css-LICENSE.txt` |
-| `libs/skins/shoelace/shoelace-light.css` | [Shoelace](https://github.com/shoelace-style/shoelace) | light theme snapshot | MIT | `Shoelace-LICENSE.txt` |
-| `libs/skins/tailwind/tailwind-skin.css` | [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss) / [daisyUI](https://github.com/saadeghi/daisyui) design tokens | custom skin | MIT | `Tailwind-CSS-LICENSE.txt` / `daisyUI-LICENSE.txt` |
-| `libs/skins/water/water.css` | [Water.css](https://github.com/kognise/water.css) | snapshot | MIT | `Water.css-LICENSE.txt` |
-| `libs/skins/win7/7.css` | [7.css](https://github.com/khang-nd/7.css) | 0.21.1 | MIT | `7.css-LICENSE.txt` |
-| `libs/skins/win98/98.css` | [98.css](https://github.com/jdan/98.css) | 0.1.21 | MIT | `98.css-LICENSE.txt` |
-| `libs/skins/xp/XP.css` | [XP.css](https://github.com/botoxparty/XP.css) | 0.2.6 | MIT | `XP.css-LICENSE.txt` |
+## 没有集成的调研项目
 
-`*-skin.css` 和 `ui-theme.css` 是为 ThoughtCanvas 编写的适配层；其中引用上游设计令牌或框架观感的部分仍按上表保留来源和许可。`skeleton/ui-theme.css` 只是本项目自定义主题，没有复制 Skeleton 框架文件，因此不把 Skeleton 列为分发依赖。
+早期调研曾评估 RichCanvas、AvalonDock、MVVMDiagramDesigner、Nodify、Paper.js 和 Excalidraw。当前 `.csproj` 没有任何第三方 `PackageReference`，源码也没有这些项目的命名空间、源码文件或二进制，因此它们不是本版本的分发依赖，也不应在发布说明中写成“已集成”。
 
-## 字体
-
-`libs/skins/nes/PressStart2P.ttf` 来自 [Press Start 2P](https://github.com/google/fonts/tree/main/ofl/pressstart2p)，版权声明为 “Copyright 2012 The Press Start 2P Project Authors”，采用 SIL Open Font License 1.1，并保留保留字体名 “Press Start 2P”。完整条款见 `Press-Start-2P-OFL-1.1.txt`。
-
-98.css 和 XP.css 的 CSS 会尝试引用 `ms_sans_serif*.woff*`，但这些字体文件没有进入本仓库或安装包；程序会回退到 Windows 系统字体。不要从非授权来源补入并重新分发这些字体。
-
-## 兼容性说明
-
-以上实际分发的 MIT 组件允许与 GPL-3.0-only 程序共同分发，OFL 1.1 字体也可随软件打包；条件是保留原版权、许可和免责声明，并且字体本身继续遵守 OFL。第三方项目名称和商标只用于来源说明，不代表上游作者为 ThoughtCanvas 背书。
+编辑器的字体列表读取 Windows 已安装字体，不随程序打包字体文件。用户选择的字体不因此被重新分发。
