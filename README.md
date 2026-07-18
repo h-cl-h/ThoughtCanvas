@@ -1,6 +1,6 @@
 ##The new version will be uploaded to the new repository：https://github.com/h-cl-h/KnotJot
 
-##新版本将上传到新仓库：https://github.com/h-cl-h/KnotJot
+新版本将上传到新仓库：https://github.com/h-cl-h/KnotJot
 
 <div align="center">
   <img src="assets/icon-256.png" width="120" alt="KnotJot">
