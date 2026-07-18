@@ -1,9 +1,17 @@
 {
-  "name": "brace-mindmap",
-  "version": "0.0.8",
-  "description": "ThoughtCanvas — 完全自定义、本地优先的思维导图工具",
+  "name": "knotjot",
+  "version": "0.0.9",
+  "description": "KnotJot (ThoughtCanvas V0.0.9) — a flexible, local-first desktop mind-mapping tool",
   "author": "happymore",
   "license": "GPL-3.0-only",
+  "homepage": "https://github.com/h-cl-h/KnotJot",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/h-cl-h/KnotJot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/h-cl-h/KnotJot/issues"
+  },
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -17,6 +25,8 @@
     "test:text-region-roundtrip": "electron tests/text-region-roundtrip-smoke.js",
     "test:visual-unified": "electron tests/unified-layer-visual-smoke.js",
     "test:real-style-sizing": "electron tests/real-style-sizing-regression.js",
+    "test:appearance": "electron tests/appearance-background-smoke.js",
+    "test:ui-hot-sync": "electron tests/ui-skins-hot-reload-smoke.js",
     "generate:stress-fixture": "node tests/generate-stress-fixture.js",
     "dist": "electron-builder --win",
     "dist:win": "electron-builder --win",
@@ -29,7 +39,7 @@
     "electron-builder": "^24.13.3"
   },
   "build": {
-    "appId": "com.thoughtcanvas.app",
+    "appId": "com.thoughtcanvas.app.v009",
     "productName": "ThoughtCanvas",
     "directories": {
       "buildResources": "build",
@@ -39,6 +49,8 @@
       "main.js",
       "preload.js",
       "index.html",
+      "appearance.css",
+      "appearance.js",
       "text-styles.css",
       "text-styles.js",
       "text-styles/**/*",

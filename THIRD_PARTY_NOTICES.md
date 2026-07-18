@@ -1,6 +1,6 @@
-# ThoughtCanvas V0.0.8 第三方组件与许可证
+# KnotJot（ThoughtCanvas V0.0.9）第三方组件与许可证
 
-ThoughtCanvas 自有代码采用 GPL-3.0-only，完整条款见同目录 `LICENSE`。下面列出的文件不是重新授权为 GPL；它们继续适用各自的许可证。完整许可副本位于 `THIRD_PARTY_LICENSES/`，并会随 Windows 安装包一起分发。
+KnotJot 当前 V0.0.9 发行文件仍沿用 ThoughtCanvas 名称。项目自有代码采用 GPL-3.0-only，完整条款见同目录 `LICENSE`。下面列出的文件不是重新授权为 GPL；它们继续适用各自的许可证。完整许可副本位于 `THIRD_PARTY_LICENSES/`，并会随 Windows 安装包一起分发。
 
 ## 运行时与 JavaScript
 
@@ -27,7 +27,7 @@ Electron 发行目录还包含 `LICENSE.electron.txt` 和 `LICENSES.chromium.htm
 | `libs/skins/win98/98.css` | [98.css](https://github.com/jdan/98.css) | 0.1.21 | MIT | `98.css-LICENSE.txt` |
 | `libs/skins/xp/XP.css` | [XP.css](https://github.com/botoxparty/XP.css) | 0.2.6 | MIT | `XP.css-LICENSE.txt` |
 
-`*-skin.css` 和 `ui-theme.css` 是为 ThoughtCanvas 编写的适配层；其中引用上游设计令牌或框架观感的部分仍按上表保留来源和许可。`skeleton/ui-theme.css` 只是本项目自定义主题，没有复制 Skeleton 框架文件，因此不把 Skeleton 列为分发依赖。
+`*-skin.css` 和 `ui-theme.css` 是为 KnotJot/ThoughtCanvas 编写的适配层；其中引用上游设计令牌或框架观感的部分仍按上表保留来源和许可。`skeleton/ui-theme.css` 只是本项目自定义主题，没有复制 Skeleton 框架文件，因此不把 Skeleton 列为分发依赖。
 
 ## 字体
 
@@ -37,4 +37,4 @@ Electron 发行目录还包含 `LICENSE.electron.txt` 和 `LICENSES.chromium.htm
 
 ## 兼容性说明
 
-以上实际分发的 MIT 组件允许与 GPL-3.0-only 程序共同分发，OFL 1.1 字体也可随软件打包；条件是保留原版权、许可和免责声明，并且字体本身继续遵守 OFL。第三方项目名称和商标只用于来源说明，不代表上游作者为 ThoughtCanvas 背书。
+以上实际分发的 MIT 组件允许与 GPL-3.0-only 程序共同分发，OFL 1.1 字体也可随软件打包；条件是保留原版权、许可和免责声明，并且字体本身继续遵守 OFL。第三方项目名称和商标只用于来源说明，不代表上游作者为 KnotJot 或 ThoughtCanvas 背书。

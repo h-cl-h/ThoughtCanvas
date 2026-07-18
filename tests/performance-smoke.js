@@ -44,8 +44,8 @@ app.whenReady().then(async () => {
         aiChat:[{role:'user',content:'生成压力测试导图'},{role:'assistant',content:'已生成'}]};
       const tLoad=performance.now(); if(!await loadDataAsync(JSON.stringify(source),'压力测试'))throw new Error('loadData failed'); const loadMs=performance.now()-tLoad;
       const aiLoaded=aiHistory.length===2&&aiHistory[0].content==='生成压力测试导图';
-      const configWrites=[];for(let i=0;i<8;i++)configWrites.push(window.api.saveSkins(JSON.stringify({seq:i,pad:i===0?'x'.repeat(500000):''})));
-      await Promise.all(configWrites);const orderedConfigWrites=JSON.parse(await window.api.loadSkins()).seq===7;
+      const configWrites=[];for(let i=0;i<8;i++)configWrites.push(window.api.saveSkins(JSON.stringify({format:'thoughtcanvas-ui-skins',version:1,revision:i,writerId:'perf-smoke',updatedUtc:new Date().toISOString(),current:'default',skins:{},pad:i===0?'x'.repeat(500000):''})));
+      await Promise.all(configWrites);const orderedConfigWrites=JSON.parse(await window.api.loadSkins()).revision===7;
       const failedBegin=await window.api.saveBegin(${JSON.stringify(failureTargetDir)},'失败清理测试');await window.api.saveChunk(failedBegin.id,'test');
       let failedSaveRejected=false;try{await window.api.saveEnd(failedBegin.id,false);}catch(e){failedSaveRejected=true;}
       const firstEl=els.t1,key0=ensureSheetKey(sheets[0]);

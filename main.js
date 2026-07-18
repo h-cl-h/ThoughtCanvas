@@ -30,7 +30,7 @@ let pendingFile = null;   // 启动时通过双击文件传入、等待渲染层
 let allowClose = false;   // 是否已确认可以关闭
 
 // 让安装版在 Windows 的任务栏、通知和文件关联中使用稳定的应用标识。
-if (process.platform === 'win32') app.setAppUserModelId('com.thoughtcanvas.app');
+if (process.platform === 'win32') app.setAppUserModelId('com.thoughtcanvas.app.v009');
 
 // 从命令行参数里找出 .bmap 文件路径（双击文件时由系统传入）
 function fileFromArgv(argv) {
@@ -97,6 +97,7 @@ function createWindow() {
   win.loadFile(path.join(__dirname, 'index.html'));
   mainWin = win;
   startTextStyleWatch();
+  startSkinWatch();
 
   // 关闭前：交给渲染层判断是否有未保存更改
   win.on('close', (e) => {
@@ -194,16 +195,61 @@ ipcMain.handle('export-save', async (e, { base64, defaultName, ext }) => {
 
 // UI 皮肤持久化到 userData 下的文件（localStorage 万一被清也能恢复，导入后无需重复导入）
 const skinsFile = () => path.join(app.getPath('userData'), 'ui-skins.json');
+let skinWatchStarted=false;
+function startSkinWatch(){
+  if(skinWatchStarted)return;skinWatchStarted=true;
+  fs.mkdirSync(path.dirname(skinsFile()),{recursive:true});
+  fs.watchFile(skinsFile(),{interval:450},()=>{
+    if(mainWin&&!mainWin.isDestroyed())mainWin.webContents.send('ui-skins-changed');
+  });
+}
+let storeWriteId=0;
+async function writeAtomicText(file,json){
+  await fs.promises.mkdir(path.dirname(file),{recursive:true});
+  const tmp=`${file}.tmp-${process.pid}-${++storeWriteId}`;
+  await fs.promises.writeFile(tmp,json,'utf8');
+  try{ await fs.promises.rename(tmp,file); }
+  catch(err){
+    try{ await fs.promises.copyFile(tmp,file); }
+    finally{ await fs.promises.unlink(tmp).catch(()=>{}); }
+  }
+}
 function orderedTextStore(fileFor){
   let queue=Promise.resolve();
   return {
     read:async()=>{await queue;return fs.promises.readFile(fileFor(),'utf8');},
-    write:json=>{const task=queue.then(()=>fs.promises.writeFile(fileFor(),json,'utf8'));queue=task.catch(()=>{});return task;}
+    write:json=>{const task=queue.then(()=>writeAtomicText(fileFor(),json));queue=task.catch(()=>{});return task;}
   };
 }
 const skinsStore=orderedTextStore(skinsFile);
 ipcMain.handle('skins-load', async () => { try { return await skinsStore.read(); } catch (err) { return null; } });
-ipcMain.handle('skins-save', async (e, json) => { try { await skinsStore.write(json); return { ok: true }; } catch (err) { return { ok: false, error: err.message }; } });
+function validateSkinsJson(json){
+  if(typeof json!=='string'||Buffer.byteLength(json,'utf8')>16*1024*1024)throw new Error('UI 皮肤库超过 16 MB 上限');
+  const o=JSON.parse(json);if(!o||typeof o!=='object'||!o.skins||typeof o.skins!=='object'||Array.isArray(o.skins))throw new Error('UI 皮肤库格式无效');
+  if(o.format&&o.format!=='thoughtcanvas-ui-skins')throw new Error('UI 皮肤库标识无效');
+  const ids=Object.keys(o.skins);if(ids.length>500)throw new Error('UI 皮肤数量超过 500 个上限');
+  for(const id of ids){
+    if(!/^[A-Za-z0-9_-]{3,80}$/.test(id))throw new Error('UI 皮肤 ID 无效：'+id);
+    const s=o.skins[id];if(!s||typeof s!=='object')throw new Error('UI 皮肤记录无效：'+id);
+    if(s.kind==='css'&&(typeof s.css!=='string'||Buffer.byteLength(s.css,'utf8')>8*1024*1024))throw new Error('UI 皮肤 CSS 无效或过大：'+id);
+  }
+  return JSON.stringify(o,null,2);
+}
+ipcMain.handle('skins-save', async (e, json) => { try { await skinsStore.write(validateSkinsJson(json)); return { ok: true,path:skinsFile() }; } catch (err) { return { ok: false, error: err.message,path:skinsFile() }; } });
+ipcMain.handle('skins-location', async () => ({file:skinsFile(),directory:path.dirname(skinsFile()),executable:process.execPath}));
+
+// 原版 UI 配色与新建导图默认背景保存在 appearance.json；当前背景同时写进 .bmap，且不污染 UI 皮肤库或文本框样式库。
+const appearanceFile = () => path.join(app.getPath('userData'), 'appearance.json');
+const appearanceStore=orderedTextStore(appearanceFile);
+function validateAppearanceJson(json){
+  if(typeof json!=='string')throw new Error('外观设置格式无效');
+  const o=JSON.parse(json);if(!o||o.app!=='thoughtcanvas-appearance'||o.version!==1)throw new Error('外观设置格式无效');
+  const b=o.background||{},data=String(b.imageData||'');
+  if(data&&!/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(data))throw new Error('背景图片数据无效');
+  return json;
+}
+ipcMain.handle('appearance-load', async () => { try { return await appearanceStore.read(); } catch (_) { return null; } });
+ipcMain.handle('appearance-save', async (e, json) => { try { await appearanceStore.write(validateAppearanceJson(json)); return {ok:true,path:appearanceFile()}; } catch(err){ return {ok:false,error:err.message,path:appearanceFile()}; } });
 
 ipcMain.handle('text-styles-load', async () => readTextStyles());
 ipcMain.handle('text-styles-location', async () => ({ directory: textStylesDir(), file: textStylesFile(), executable: process.execPath }));
@@ -280,6 +326,10 @@ ipcMain.handle('confirm-discard', async (e, name) => {
 
 // 单实例：已开着软件时再双击文件，转发给现有窗口，而不是另开一个
 const integrationTest = process.env.THOUGHTCANVAS_INTEGRATION_TEST === '1';
+if(integrationTest)module.exports.__test={
+  attachWindowForSkinWatch(win){mainWin=win;startSkinWatch();},
+  skinsFile
+};
 let openFileQueue=Promise.resolve();
 function enqueueOpenFile(fp){
   openFileQueue=openFileQueue.then(async()=>{const r=await readFileSafe(fp);

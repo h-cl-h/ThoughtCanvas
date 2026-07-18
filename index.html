@@ -874,7 +874,8 @@
   /* 开始页 AI 卡片高亮 */
   .newcard.sc-ai .nc-thumb{background:linear-gradient(135deg,var(--accent),#8b5cf6);color:#fff;}
 </style>
-<link rel="stylesheet" href="text-styles.css">
+<link rel="stylesheet" href="appearance.css" id="appearanceCss">
+<link rel="stylesheet" href="text-styles.css" id="textStylesCss">
 </head>
 <body>
 
@@ -884,7 +885,7 @@
     <div class="brand"><span class="logo">✦</span><div><div class="bt">ThoughtCanvas</div><div class="bs">思维画布</div></div></div>
     <div class="side-sub">大括号 · 蜘蛛网 · 多种结构图<br>自由梳理你的思路结构</div>
     <button id="scSettings" class="side-btn">⚙ 设置</button>
-    <div class="ver">V0.0.8</div>
+    <div class="ver">V0.0.9</div>
   </div>
   <div class="start-main">
     <h2 class="sh">开始</h2>
@@ -1262,6 +1263,7 @@ let idc = 0;
 let scale = 1, panX = 0, panY = 0;   // 画布缩放 / 平移
 let curPath = null;                  // 当前文件路径（桌面版）
 let curName = '未命名思维导图';
+let documentAppearance = {background:null}; // 文件级导图背景；原版 UI 配色仍是应用级设置
 let dirty = false, modelRevision = 0;
 // 多画布：全局状态(TB/BR/...) 始终代表“当前活动画布”，文件持有 sheets[]（每张=一份干净数据对象）
 let sheets = [];          // 非活动画布的数据对象；活动画布以全局状态为准
@@ -1303,6 +1305,7 @@ function applyTransform(){
   const gs = 26*scale;
   canvas.style.backgroundSize = gs+'px '+gs+'px';
   canvas.style.backgroundPosition = panX+'px '+panY+'px';
+  if(window.AppearanceEditor&&AppearanceEditor.updateCanvasTransform) AppearanceEditor.updateCanvasTransform();
   if(typeof updateZoomLbl==='function') updateZoomLbl();
 }
 // 客户端坐标 → 世界坐标
@@ -1328,6 +1331,7 @@ function newTextbox(text=''){const id=nid('t'),sid=window.TextStyleFeature&&Text
 
 function addRootAt(wx, wy){
   if(readonly) return;
+  if(window.AppearanceEditor&&AppearanceEditor.clampWorldPoint){ const p=AppearanceEditor.clampWorldPoint(wx,wy);wx=p.x;wy=p.y; }
   const id = newTextbox('');
   const t = TB[id];
   t.x = wx; t.y = wy;            // 先临时放置，render 后再用真实尺寸居中
@@ -2100,7 +2104,7 @@ svg.addEventListener('pointerdown', e=>{ if(e.button!==0)return;const h=e.target
 function F(n){ return (Math.round(n*100)/100); }
 
 function layout(){
-  if(docType==='spider'){ spiderLayout(); drawOverlays(); return; }
+  if(docType==='spider'){ spiderLayout(); if(window.AppearanceEditor&&AppearanceEditor.constrainLayout&&AppearanceEditor.constrainLayout()){layout();return;} drawOverlays(); return; }
   if(roots.length===0){ svg.innerHTML=''; drawOverlays(); return; }
   if(anyNonBrace()){
     // 含非大括号结构 → 通用多结构布局（智能整理仅对纯大括号图生效）
@@ -2118,6 +2122,7 @@ function layout(){
   roots.forEach(id=>computeGeom(id));
   positionStructuralNodeTextboxes();                         // 节点文本框始终以实际节点为中心
   positionRB();                                             // 反向大括号目标框定位（在右侧）
+  if(window.AppearanceEditor&&AppearanceEditor.constrainLayout&&AppearanceEditor.constrainLayout()){ layout(); return; }
   // 应用文本框位置
   for(const id in TB){
     const t=TB[id], e=els[id];
@@ -3506,8 +3511,9 @@ function serializedSheetAt(i){ const s=sheets[i];return isLazySheet(s)?s.__lazyJ
 function serialize(){
   syncActiveSheet();
   const chunks=sheets.map((s,i)=>serializedSheetAt(i));
+  const appearance=window.AppearanceEditor&&AppearanceEditor.getDocumentAppearance?AppearanceEditor.getDocumentAppearance():documentAppearance;
   // aiChat：把生成/修改这张图的 AI 对话记录一起存进文件（文件级；再次打开可回看/续聊）
-  return `{"app":"brace-mindmap","version":2,"name":${JSON.stringify(curName)},"curSheet":${curSheet},"sheets":[${chunks.join(',')}],"aiChat":${JSON.stringify(aiChatForSave())}}`;
+  return `{"app":"brace-mindmap","version":2,"name":${JSON.stringify(curName)},"curSheet":${curSheet},"sheets":[${chunks.join(',')}],"appearance":${JSON.stringify(appearance)},"aiChat":${JSON.stringify(aiChatForSave())}}`;
 }
 function applyLoadedDocument(d,fallbackName){
   if(!d || d.app!=='brace-mindmap'){ alert('这不是有效的思维导图文件'); return false; }
@@ -3516,6 +3522,8 @@ function applyLoadedDocument(d,fallbackName){
   else { sheets=[d]; curSheet=0; }                        // 旧格式：整个 d 就是一张画布
   sheetRuntimeCache=new Map();sheetLastUsed=new Map();sheets.forEach(s=>ensureSheetKey(s));
   curName = (d.name && (''+d.name).trim()) || fallbackName || '未命名思维导图';
+  documentAppearance=(d.appearance&&typeof d.appearance==='object')?d.appearance:{background:null};
+  if(window.AppearanceEditor&&AppearanceEditor.loadDocumentAppearance)AppearanceEditor.loadDocumentAppearance(documentAppearance);
   olCollapsed.clear();
   const active=materializeSheet(curSheet);hydrate(active);
   scale=(active.view&&active.view.scale)?active.view.scale:1;centerContent();
@@ -4403,14 +4411,15 @@ function updateUndoBtns(){
 let saveQueue=Promise.resolve();
 function captureSaveSnapshot(){
   syncActiveSheet();evictSheetsToLimit(null);
-  return {revision:modelRevision,name:curName,curSheet,sheetChunks:sheets.map((_,i)=>serializedSheetAt(i)),aiChat:JSON.stringify(aiChatForSave())};
+  const appearance=window.AppearanceEditor&&AppearanceEditor.getDocumentAppearance?AppearanceEditor.getDocumentAppearance():documentAppearance;
+  return {revision:modelRevision,name:curName,curSheet,sheetChunks:sheets.map((_,i)=>serializedSheetAt(i)),appearance:JSON.stringify(appearance),aiChat:JSON.stringify(aiChatForSave())};
 }
 async function streamSaveSnapshot(filePath,snapshot){
   const begin=await window.api.saveBegin(filePath,snapshot.name);if(!begin||begin.canceled)return begin;
   try{
     await window.api.saveChunk(begin.id,`{"app":"brace-mindmap","version":2,"name":${JSON.stringify(snapshot.name)},"curSheet":${snapshot.curSheet},"sheets":[`);
     for(let i=0;i<snapshot.sheetChunks.length;i++){await window.api.saveChunk(begin.id,(i?',':'')+snapshot.sheetChunks[i]);if((i&1)===1)await new Promise(r=>setTimeout(r,0));}
-    await window.api.saveChunk(begin.id,`],"aiChat":${snapshot.aiChat}}`);const end=await window.api.saveEnd(begin.id,false);
+    await window.api.saveChunk(begin.id,`],"appearance":${snapshot.appearance},"aiChat":${snapshot.aiChat}}`);const end=await window.api.saveEnd(begin.id,false);
     return Object.assign({},begin,end,{revision:snapshot.revision,snapshotName:snapshot.name});
   }catch(err){try{await window.api.saveEnd(begin.id,true);}catch(_){}throw err;}
 }
@@ -4454,6 +4463,7 @@ async function doNew(type, initStruct){
   cancelAddAnchor(); cancelAddLinkNode(); closeTaskPanel(false); olCollapsed.clear();
   const dtype=type||'brace';
   sheets=[newSheetData(dtype, initStruct, dtype==='spider'?'画布 1':'画布 1')]; curSheet=0;sheetRuntimeCache=new Map();sheetLastUsed=new Map();
+  documentAppearance={background:null};if(window.AppearanceEditor&&AppearanceEditor.loadDocumentAppearance)AppearanceEditor.loadDocumentAppearance(documentAppearance);
   curPath=null; curName=(dtype==='spider'?'未命名蜘蛛网':'未命名思维导图'); dirty=false;
   hydrate(sheets[0]); scale=1;
   const rootId=sheets[0].roots[0];
@@ -4602,8 +4612,13 @@ function openSettings(){
   document.querySelectorAll('#settingsBox .set-pane').forEach(p=>p.classList.toggle('active', p.id==='paneGeneral'));
   settingsMask.classList.add('show');
   translateNode(settingsMask);
+  document.dispatchEvent(new CustomEvent('thoughtcanvas:settings-opened'));
 }
-function closeSettings(){ settingsMask.classList.remove('show'); }
+function closeSettings(){
+  if(!settingsMask.classList.contains('show')) return;
+  document.dispatchEvent(new CustomEvent('thoughtcanvas:settings-closed'));
+  settingsMask.classList.remove('show');
+}
 document.getElementById('wrapRange').addEventListener('input', e=>{
   wrapChars=+e.target.value;
   document.getElementById('wrapVal').textContent=wrapChars;
@@ -4656,11 +4671,16 @@ function normScheme(o){    // 校验 .bmaptheme：必须有 app 标识 + 合法 
   const ac=(o.accent||'').toString().trim(); if(!/^#[0-9a-fA-F]{6}$/.test(ac)) return null;
   const soft=/^#[0-9a-fA-F]{6}$/.test((o.accentSoft||'').toString())?o.accentSoft:hexDark(ac,1.7);
   const d=hexDark(ac,.8), l=hexDark(ac,1.18);
+  const tokens={}; if(o.tokens&&typeof o.tokens==='object'){
+    ['bg','grid','card','cardBorder','ink','muted','toolbarBg','menuBg','menuHover','brace','danger'].forEach(k=>{if(/^#[0-9a-fA-F]{6}$/.test(String(o.tokens[k]||'')))tokens[k]=String(o.tokens[k]).toLowerCase();});
+  }
   return { name:(o.name||'自定义配色').toString().slice(0,20), accent:ac, accentSoft:soft,
     sideGrad:o.sideGrad||('160deg,'+ac+','+d), thumbBlank:o.thumbBlank||('135deg,'+ac+','+l),
-    thumbSample:o.thumbSample||('135deg,'+d+','+ac), thumbOpen:o.thumbOpen||('135deg,'+ac+','+d), user:true };
+    thumbSample:o.thumbSample||('135deg,'+d+','+ac), thumbOpen:o.thumbOpen||('135deg,'+ac+','+d), tokens, user:true };
 }
 function applyScheme(key){
+  const activeSkin=document.documentElement.getAttribute('data-uiskin');
+  if(activeSkin&&activeSkin!=='default'){ schemeMsg('原版配色仅在原版 UI 下可编辑；请先切回原版 UI','err'); return; }
   const all=allSchemes(); const s=all[key]||BUILTIN_SCHEMES.blue; curScheme=all[key]?key:'blue';
   const r=document.documentElement.style;
   r.setProperty('--accent',s.accent); r.setProperty('--accent-soft',s.accentSoft);
@@ -4669,6 +4689,7 @@ function applyScheme(key){
   r.setProperty('--thumb-sample','linear-gradient('+s.thumbSample+')');
   r.setProperty('--thumb-open','linear-gradient('+s.thumbOpen+')');
   localStorage.setItem('bmap.scheme',curScheme);
+  document.dispatchEvent(new CustomEvent('thoughtcanvas:scheme-applied',{detail:{key:curScheme,scheme:s}}));
 }
 function renderSchemes(){
   const box=document.getElementById('schemeSwatches'); if(!box) return; const all=allSchemes();
@@ -4695,6 +4716,7 @@ function importThemeText(text){
     return;
   }
   // 旧格式：主题色（.bmaptheme）
+  if(document.documentElement.getAttribute('data-uiskin')!=='default'){ schemeMsg('主题色只允许在原版 UI 下导入；请先切回原版 UI','err'); return; }
   const s=normScheme(o); if(!s){ schemeMsg('无法读取（需 .bmapui 或 .bmaptheme）','err'); return; }
   const u=getUserSchemes(); const key='u_'+Date.now().toString(36); u[key]=s; setUserSchemes(u);
   applyScheme(key); renderSchemes(); renderPreview(); schemeMsg('已添加并应用主题色：'+s.name,'ok');
@@ -4760,7 +4782,9 @@ const UI_QUICK_IDS=['default','skeleton','tailwind','win98','xp']; // 主面板�
 function getUserUI(){ try{ return JSON.parse(localStorage.getItem('bmap.userSkins')||'{}'); }catch(e){ return {}; } }
 function setUserUI(o){ try{ localStorage.setItem('bmap.userSkins',JSON.stringify(o)); }catch(e){} persistSkinsFile(); }
 // 桌面版：把自定义皮肤 + 当前皮肤 id 落到 userData 的文件里，重启不丢（localStorage 万一被清也能恢复）
-function persistSkinsFile(){ if(window.api && window.api.saveSkins){ try{ window.api.saveSkins(JSON.stringify({current:curUISkin, skins:getUserUI()})); }catch(e){} } }
+const UI_SKIN_WRITER='thoughtcanvas-main-'+Math.random().toString(36).slice(2);
+let uiSkinRevision=0;
+function persistSkinsFile(){ if(window.api && window.api.saveSkins){ try{ window.api.saveSkins(JSON.stringify({format:'thoughtcanvas-ui-skins',version:1,revision:++uiSkinRevision,writerId:UI_SKIN_WRITER,updatedUtc:new Date().toISOString(),current:curUISkin,skins:getUserUI()})); }catch(e){} } }
 function allUISkins(){
   const u=getUserUI();
   const us=Object.keys(u).map(id=>Object.assign({id,group:'自定义',user:true}, u[id]));
@@ -4782,19 +4806,21 @@ function skinAssets(s){
   }
   return (s.files||[]).map(f=>({href:'libs/skins/'+f}));               // 内置
 }
-function applyUISkin(id){
+function applyUISkin(id,skipPersist){
   document.querySelectorAll('link[data-uiskin],style[data-uiskin]').forEach(e=>e.remove());
   const s=findUISkin(id); curUISkin=s.id;
   skinAssets(s).forEach(a=>{
     let el;
     if(a.href){ el=document.createElement('link'); el.rel='stylesheet'; el.href=a.href; }
     else { el=document.createElement('style'); el.textContent=a.style; }
-    el.setAttribute('data-uiskin','1'); document.head.appendChild(el);
+    el.setAttribute('data-uiskin','1'); const textCss=document.getElementById('textStylesCss');
+    textCss?document.head.insertBefore(el,textCss):document.head.appendChild(el);
   });
   document.documentElement.setAttribute('data-uiskin',s.id);
   localStorage.setItem('bmap.uiskin',s.id);
-  persistSkinsFile();
+  if(!skipPersist)persistSkinsFile();
   renderUIQuick(); markUIState();
+  document.dispatchEvent(new CustomEvent('thoughtcanvas:ui-skin-applied',{detail:{id:s.id}}));
 }
 function markUIState(){
   document.querySelectorAll('#uiQuick .uichip').forEach(c=>c.classList.toggle('on',c.dataset.id===curUISkin));
@@ -4881,21 +4907,24 @@ function renderGallery(){
   if(mask) mask.addEventListener('click',e=>{ if(e.target===mask) close(); });
   document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&mask.classList.contains('show')){ e.stopPropagation(); close(); } },true);
 })();
-applyUISkin(curUISkin);          // 先按 localStorage 立即应用（无闪烁）
-// 桌面版：若 localStorage 被清（重启丢皮肤），从 userData 的文件里恢复自定义皮肤 + 当前皮肤
-(async function restoreSkinsFromFile(){
+applyUISkin(curUISkin,true);     // 先按 localStorage 立即应用（无闪烁），读取磁盘库前不回写覆盖外部更新
+// 桌面版：从统一皮肤库恢复，并在外部编辑器原子替换文件后热更新当前 UI。
+async function restoreSkinsFromFile(externalChange){
   try{
     if(!(window.api && window.api.loadSkins)) return;
     const txt=await window.api.loadSkins(); if(!txt) return;
-    const f=JSON.parse(txt); if(!f) return; let need=false;
+    const f=JSON.parse(txt); if(!f || (f.format&&f.format!=='thoughtcanvas-ui-skins')) return; let need=false;
+    uiSkinRevision=Math.max(uiSkinRevision,Number(f.revision)||0);
     if(f.skins && typeof f.skins==='object'){ const cur=getUserUI();
-      for(const id in f.skins){ if(!cur[id]){ cur[id]=f.skins[id]; need=true; } }
+      for(const id in f.skins){ if(JSON.stringify(cur[id])!==JSON.stringify(f.skins[id])){ cur[id]=f.skins[id]; need=true; } }
       if(need){ try{ localStorage.setItem('bmap.userSkins', JSON.stringify(cur)); }catch(e){} } }
     const lsCur=localStorage.getItem('bmap.uiskin');
-    if((!lsCur || lsCur==='default') && f.current && f.current!=='default'){ curUISkin=f.current; try{ localStorage.setItem('bmap.uiskin', f.current); }catch(e){} need=true; }
-    if(need) applyUISkin(curUISkin);   // 有从文件恢复的东西 → 重新应用
+    if(f.current && findUISkin(f.current).id===f.current && (externalChange || !lsCur || lsCur==='default')){ curUISkin=f.current; try{ localStorage.setItem('bmap.uiskin', f.current); }catch(e){} need=true; }
+    if(need){ applyUISkin(curUISkin,true); renderUIQuick(); if(document.getElementById('uiGalleryMask').classList.contains('show'))renderGallery(); }
   }catch(e){}
-})();
+}
+restoreSkinsFromFile(false);
+if(window.api&&window.api.onSkinsChanged)window.api.onSkinsChanged(()=>restoreSkinsFromFile(true));
 
 //================ 双击文件名重命名 ================
 const fnameEl=document.getElementById('fname');
@@ -6543,6 +6572,7 @@ document.getElementById('addRoot').onclick=()=>{
   addRootAt(w.x, w.y);
 };
 document.getElementById('fit').onclick=()=>{
+  if(window.AppearanceEditor&&AppearanceEditor.fitLimitedCanvas&&AppearanceEditor.fitLimitedCanvas()) return;
   // 重置缩放并把第一个根节点居中
   if(!roots.length){ scale=1; centerWorld(3000,1800); return; }
   const t=TB[roots[0]];
@@ -6574,5 +6604,6 @@ applyDocType();
 bootstrap();   // 启动：有初始文件则直接打开，否则显示开始页
 </script>
 <script src="text-styles.js"></script>
+<script src="appearance.js"></script>
 </body>
 </html>
